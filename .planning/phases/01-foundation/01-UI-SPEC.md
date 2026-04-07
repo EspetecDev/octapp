@@ -1,10 +1,11 @@
 ---
 phase: 1
 slug: foundation
-status: draft
+status: approved
 shadcn_initialized: false
 preset: none
 created: 2026-04-07
+updated: 2026-04-07
 ---
 
 # Phase 1 — UI Design Contract
@@ -26,6 +27,64 @@ created: 2026-04-07
 | Font | System UI stack: `-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif` |
 
 **Rationale (from SUMMARY.md):** The stack decision chose CSS + Web Animations API explicitly over any component library. shadcn is React-only and not applicable to SvelteKit. No Tailwind — plain CSS custom properties with BEM-style scoped Svelte styles. This keeps the bundle at ~47KB total.
+
+---
+
+## CSS Custom Properties Contract
+
+All design tokens are declared as CSS custom properties on `:root`. This is the single source of truth for the executor.
+
+```css
+:root {
+  /* Surfaces */
+  --color-bg: #0F0F0F;
+  --color-surface: #1C1C1E;
+  --color-border: #2D2D2F;
+
+  /* Text */
+  --color-text-primary: #F9FAFB;
+  --color-text-secondary: #9CA3AF;
+
+  /* Role accents — runtime-swapped on role selection */
+  --color-accent: #6B7280;          /* neutral default before role is chosen */
+  --color-accent-groom: #F59E0B;    /* amber-400 */
+  --color-accent-group: #EF4444;    /* red-500 */
+  --color-accent-admin: #6B7280;    /* gray-500 */
+
+  /* Semantic */
+  --color-success: #22C55E;
+  --color-destructive: #EF4444;
+
+  /* Typography */
+  --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-size-label: 14px;
+  --font-size-body: 16px;
+  --font-size-heading: 24px;
+  --font-size-display: 40px;
+  --font-weight-regular: 400;
+  --font-weight-bold: 700;
+
+  /* Spacing */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+  --space-2xl: 48px;
+  --space-3xl: 64px;
+
+  /* Animation */
+  --duration-fast: 100ms;
+  --duration-normal: 200ms;
+  --duration-slow: 300ms;
+  --ease-out: cubic-bezier(0.0, 0.0, 0.2, 1);
+  --ease-in-out: cubic-bezier(0.4, 0.0, 0.6, 1);
+}
+```
+
+**Role accent swap rule:** When the user selects a role on `/`, Svelte sets `document.documentElement.style.setProperty('--color-accent', 'var(--color-accent-groom)')` (or group). From that point forward, every component that uses `--color-accent` automatically reflects the role. No component-level conditionals required for accent color.
+
+**Accent transition:** The `--color-accent` property change is not animated. The role button itself animates (see Animation Contract), but the accent propagation across the page is instantaneous (0ms). This is intentional — the immediate full-page color shift is the feedback signal for role selection.
 
 ---
 
@@ -54,14 +113,14 @@ Exceptions:
 | Role | Size | Weight | Line Height | Usage |
 |------|------|--------|-------------|-------|
 | Body | 16px | 400 | 1.5 | Instructions, labels, list items, secondary copy |
-| Label | 14px | 600 | 1.3 | Input labels, badge text, status chips |
+| Label | 14px | 400 | 1.3 | Input labels, badge text, status chips |
 | Heading | 24px | 700 | 1.2 | Screen title, role name display, section headers |
-| Display | 40px | 800 | 1.1 | 6-character join code, large status readouts ("Waiting...") |
+| Display | 40px | 700 | 1.1 | 6-character join code, large status readouts ("Waiting...") |
 
 **Notes:**
 - No web font loading — system UI stack only. Avoids FOUT and network round-trips on venue WiFi.
 - Display size (40px) is chosen so the 6-char session code reads across a bar at arm's length.
-- Weight 800 is available in the system UI stack on iOS (`.SFNS-Heavy`) and Android (`Roboto-Black`). Fall back to 700 if absent.
+- Two weights only: 400 (regular) for Body and Label; 700 (bold) for Heading, Display, and all emphasis.
 - `letter-spacing: 0.1em` on the Display role when rendering the session code — aids legibility of ambiguous characters.
 
 ---
@@ -94,6 +153,8 @@ Accent reserved for:
 - The player's own name chip in the player list (admin view)
 - The session code display border on `/admin`
 
+**Focus ring:** All interactive elements use `outline: 2px solid var(--color-accent)` with `outline-offset: 2px` on `:focus-visible`. On routes where no role accent is active (the join page before role selection), use `outline: 2px solid #F9FAFB`. Never remove the focus ring entirely — it is required for WCAG 2.4.7.
+
 ---
 
 ## Views and Interaction Contract
@@ -102,6 +163,8 @@ This section specifies the exact screens for Phase 1 and their interaction requi
 
 ### `/` — Landing / Join Page
 
+**Primary anchor:** The session code input field — it is focused on load and is the first action every user must complete.
+
 **Purpose:** Enter 6-char session code + display name + select role. Single-page flow; no routing between steps.
 
 **Layout:** Single centered column, `height: 100dvh`, no scroll. All elements visible above the fold.
@@ -109,34 +172,40 @@ This section specifies the exact screens for Phase 1 and their interaction requi
 **States:**
 1. **Initial** — Code input focused, name input empty, role not selected, CTA disabled.
 2. **Code entered** — 6 chars typed (auto-uppercased, strip ambiguous chars 0/O/1/I/l handled server-side). No inline validation yet.
-3. **Role selected** — Role button highlighted in its accent color. Page accent updates immediately.
+3. **Role selected** — Role button highlighted in its accent color. Page accent (`--color-accent`) updates immediately (0ms).
 4. **All fields valid** — CTA enabled.
-5. **Submitting** — CTA shows spinner, inputs disabled.
+5. **Submitting** — CTA shows spinner, inputs disabled. If no server response within 8 seconds, revert to state 4 (all fields valid, CTA re-enabled) and show the generic error toast.
 6. **Error: wrong code** — Inline error below code input: "That code doesn't match any active game. Check with your host." Input re-focused.
 7. **Error: groom taken** — Inline error below role selector: "Someone already claimed the Groom role. Join as Group." Group role auto-selected, groom button disabled.
 8. **Error: generic** — Toast at top: "Something went wrong. Try again."
 
 **Element specs:**
-- Code input: `font-size: 24px`, `letter-spacing: 0.2em`, `text-transform: uppercase`, `width: 100%`, `height: 56px`, centered text.
-- Name input: `font-size: 18px`, `height: 52px`, placeholder "Your name".
-- Role selector: Two side-by-side buttons, each `height: 56px`, `flex: 1`. Left = "Groom" (amber accent when active), Right = "Group" (red accent when active). Inactive state: secondary surface color with text-secondary label.
-- CTA button: Full width, `height: 56px`, `font-size: 18px`, `font-weight: 700`. Disabled = 40% opacity, `cursor: not-allowed`.
+- Code input: `font-size: 24px`, `letter-spacing: 0.2em`, `text-transform: uppercase`, `width: 100%`, `height: 56px`, centered text, `autocomplete="off"`.
+- Name input: `font-size: 16px`, `height: 52px`, placeholder "Your name", `autocomplete="nickname"`.
+- Role selector: Two side-by-side buttons, each `height: 56px`, `flex: 1`. Left = "I'm the Groom" (amber accent when active), Right = "I'm in the Group" (red accent when active). Inactive state: secondary surface color with text-secondary label.
+- CTA button: Full width, `height: 56px`, `font-size: 16px`, `font-weight: 700`. Disabled = 40% opacity, `cursor: not-allowed`, `pointer-events: none`.
 - CTA label: "Join Game"
+- CTA spinner: 20px spinning ring (CSS `@keyframes` rotation), text-primary color, centered in button. Inputs are `disabled` and `opacity: 0.5` while submitting.
 
 **Interactions:**
 - Code input: auto-uppercase on `input` event. Max length 6. `inputmode="text"` with `autocomplete="off"`.
-- Keyboard: "Done"/"Go" on mobile keyboard should submit if form is valid.
+- Keyboard: "Done"/"Go" on mobile keyboard triggers form submit if form is valid.
 - No submit on Enter until all fields valid.
+- Name field: enforced via HTML5 `required` attribute. The CTA disabled state prevents submission without a name. The "Error: name required" copy in the Copywriting Contract is reserved for a future custom validation message if the HTML5 approach is replaced.
+- Role buttons: `touch-action: manipulation` to eliminate 300ms tap delay. `navigator.vibrate(50)` on role selection (haptic pattern: single 50ms pulse).
+- CTA button: `touch-action: manipulation`. `navigator.vibrate([50, 30, 50])` on successful join (haptic pattern: double pulse).
 
 ---
 
 ### `/admin` — Admin Dashboard
 
+**Primary anchor:** The session code display card — it occupies the top 40% of the screen and is the first thing the admin shares with arriving players.
+
 **Purpose:** Display session code, show connected players, provide phase controls.
 
-**Layout:** Two-zone vertical stack, `height: 100dvh`, no scroll within zones.
-- Zone 1 (top 40%): Session code display + join instructions.
-- Zone 2 (bottom 60%): Scrollable player list.
+**Layout:** Two-zone vertical stack, `height: 100dvh`, no scroll on the outer container.
+- Zone 1 (top 40%): Session code display + join instructions. `flex-shrink: 0`.
+- Zone 2 (bottom 60%): Player list. `overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain`. The `overscroll-behavior: contain` scopes elastic scroll bounce to this zone without propagating to the page body.
 
 **States:**
 1. **Unauthenticated** — If `ADMIN_TOKEN` header/param absent or wrong: full-screen error "Access denied." with no game state visible.
@@ -146,10 +215,12 @@ This section specifies the exact screens for Phase 1 and their interaction requi
 5. **Ready to start** — CTA unlocked (future phases; in Phase 1 this is a placeholder "Game not started" label).
 
 **Element specs:**
-- Session code: Display role (40px, weight 800), `letter-spacing: 0.1em`, framed in a card with admin accent border (`#6B7280`).
+- Session code: Display role (40px, weight 700), `letter-spacing: 0.1em`, framed in a card with admin accent border (`#6B7280`).
 - "Share this code" subtext: Body role (16px, text-secondary).
-- Player chips: `height: 48px`, role badge (Label role, 14px, 600), connection dot (8px circle: green = connected, gray = disconnected).
-- Player list section heading: "Players in lobby" — Label role (14px, 600, text-secondary).
+- Player chips: `height: 48px`, `display: flex`, `align-items: center`, `gap: 8px`. Role badge (Label role, 14px, 400), connection dot (8px circle).
+  - Connected player: dot `background: #22C55E`. Chip at full opacity.
+  - Disconnected player: dot `background: #9CA3AF`. Chip at `opacity: 0.5` — the whole chip dims, not just the dot, to make disconnected players immediately scannable.
+- Player list section heading: "Players in lobby" — Label role (14px, 400, text-secondary).
 
 **Empty state:**
 - Heading: "Waiting for players"
@@ -159,21 +230,23 @@ This section specifies the exact screens for Phase 1 and their interaction requi
 
 ### `/groom` — Groom Waiting Screen (Lobby)
 
+**Primary anchor:** The player's role label ("You are the Groom") with their display name — together these confirm identity and role before the game begins.
+
 **Purpose:** Groom sees confirmation they joined + waits for admin to start.
 
 **Layout:** Full-bleed centered column, `height: 100dvh`. Single action zone. No scroll.
 
-**Accent:** Amber (`#F59E0B`) on all interactive and branded elements.
+**Accent:** Amber (`#F59E0B`) — `--color-accent` is set to `var(--color-accent-groom)` on this route.
 
 **States:**
 1. **Lobby** — Large amber role badge "You are the Groom", player name displayed, "Waiting for the game to start..." in text-secondary. No actions available.
 2. **Reconnecting** — Reconnecting overlay active (see Overlays section).
 
 **Element specs:**
-- Role badge: Heading role (24px, 700), amber background pill, dark text, `padding: 8px 24px`.
-- Player name: Display role (40px, 800), text-primary.
+- Role badge: Heading role (24px, 700), amber background pill (`background: var(--color-accent-groom)`), dark text (`#0F0F0F`), `padding: 8px 24px`, `border-radius: 100px`.
+- Player name: Display role (40px, 700), text-primary.
 - Waiting label: Body role (16px, 400), text-secondary, centered.
-- Animated indicator: Three-dot pulse in amber, beneath the waiting label. CSS `@keyframes` opacity pulse, 1.2s ease-in-out infinite.
+- Animated indicator: Three-dot pulse in `var(--color-accent-groom)`, beneath the waiting label. CSS `@keyframes` opacity pulse, 1.2s ease-in-out infinite, staggered 0.4s between dots.
 
 **Copy:**
 - Role badge: "You are the Groom"
@@ -184,21 +257,23 @@ This section specifies the exact screens for Phase 1 and their interaction requi
 
 ### `/party` — Group Waiting Screen (Lobby)
 
+**Primary anchor:** The player's role label ("You're in the Group") with their display name — confirms identity and signals team membership before the game begins.
+
 **Purpose:** Group members see their confirmation + see others joining in real time.
 
-**Layout:** Full-bleed centered column, `height: 100dvh`. Player count section beneath personal info. No scroll.
+**Layout:** Full-bleed centered column, `height: 100dvh`. Player count section beneath personal info. No scroll on outer container.
 
-**Accent:** Red (`#EF4444`) on all interactive and branded elements.
+**Accent:** Red (`#EF4444`) — `--color-accent` is set to `var(--color-accent-group)` on this route.
 
 **States:**
 1. **Lobby** — Red role badge "You're in the Group", player name, live player count ("3 players ready"), scrollable mini-list of connected group members.
 2. **Reconnecting** — Reconnecting overlay active.
 
 **Element specs:**
-- Role badge: Heading role (24px, 700), red background pill, `padding: 8px 24px`, white text.
-- Player name: Display role (40px, 800), text-primary.
+- Role badge: Heading role (24px, 700), red background pill (`background: var(--color-accent-group)`), white text (`#F9FAFB`), `padding: 8px 24px`, `border-radius: 100px`.
+- Player name: Display role (40px, 700), text-primary.
 - Player count: Heading role (24px, 700), text-primary. Updates in real time via WebSocket.
-- Mini player list: scrollable, `max-height: 200px`, each row is Label role (14px, 600) with 8px vertical padding.
+- Mini player list: `overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; max-height: 200px`. Each row is Label role (14px, 400) with `padding: 8px 0`.
 - Waiting label: Body role (16px, 400), text-secondary.
 
 **Copy:**
@@ -216,15 +291,17 @@ These overlays appear on all routes and must sit above all page content (`z-inde
 
 **Trigger:** WebSocket `onclose` or missed heartbeat. Dismissed automatically when connection restored.
 
-**Layout:** Full-bleed `position: fixed`, `inset: 0`, `height: 100dvh`, secondary surface background (`#1C1C1E`) at 95% opacity. Vertically centered content.
+**Layout:** Full-bleed `position: fixed`, `inset: 0`, `height: 100dvh`, secondary surface background (`#1C1C1E`) at 95% opacity (`background: rgba(28, 28, 30, 0.95)`). Vertically centered content.
 
 **Content:**
-- Icon: Animated spinning ring (CSS, 32px) in text-secondary color.
+- Icon: Animated spinning ring (CSS `@keyframes` rotation, 32px) in `var(--color-text-secondary)`.
 - Heading: "Reconnecting..." — Heading role (24px, 700), text-primary.
 - Body: "Hold tight — we'll get you back in the game." — Body role (16px, 400), text-secondary.
 - No dismiss button — auto-dismisses on reconnect.
 
-**Transition:** Fade in over 200ms. Fade out over 300ms on dismiss.
+**Pointer events:** `pointer-events: none` during the fade-out transition (300ms) so that content behind the overlay becomes interactive the moment the dismiss begins. Set `pointer-events: all` only when the overlay is fully opaque (`opacity: 1`).
+
+**Transition:** Fade in over 200ms (`ease-in`). Fade out over 300ms (`ease-out`). Use CSS `transition: opacity var(--duration-slow) var(--ease-out)` — do not use the Web Animations API for this overlay, as it must also work before Svelte is fully mounted.
 
 ### Landscape Detection Overlay
 
@@ -237,7 +314,7 @@ These overlays appear on all routes and must sit above all page content (`z-inde
 - Heading: "Rotate your phone" — Heading role (24px, 700), text-primary.
 - Body: "This game is portrait only." — Body role (16px, 400), text-secondary.
 
-**Implementation:** This overlay is CSS-only. No JS state, no event listener. The overlay element is always in the DOM, shown/hidden via `@media (orientation: landscape)`.
+**Implementation:** This overlay is CSS-only. No JS state, no event listener. The overlay element is always in the DOM, shown via `@media (orientation: landscape) { display: flex }` and hidden via `display: none` in portrait. The overlay uses `z-index: 200` (above the reconnecting overlay at z-index 100).
 
 ---
 
@@ -246,7 +323,7 @@ These overlays appear on all routes and must sit above all page content (`z-inde
 | Element | Copy |
 |---------|------|
 | Primary CTA (join page) | "Join Game" |
-| Role option: groom | "Groom" |
+| Role option: groom | "I'm the Groom" |
 | Role option: group | "I'm in the Group" |
 | Empty state heading (admin player list) | "Waiting for players" |
 | Empty state body (admin player list) | "Share the code above. Players join at [app URL]." |
@@ -259,7 +336,8 @@ These overlays appear on all routes and must sit above all page content (`z-inde
 | Error: wrong code | "That code doesn't match any active game. Check with your host." |
 | Error: groom role taken | "Someone already claimed the Groom role. Join as Group." |
 | Error: generic | "Something went wrong. Try again." |
-| Error: name required | "Enter your name to join." |
+| Error: name required | "Enter your name to join." — reserved for future custom validation; Phase 1 enforces this via HTML5 `required` with no custom visible error state (CTA remains disabled). |
+| Error: timeout (join submit) | "Connection timed out. Try again." — shown as generic toast after 8-second submit timeout. |
 | Admin access denied | "Access denied." |
 
 **Tone:** Warm, direct, slightly playful. Never clinical. Write as if you are a friend running the event, not a software product. No punctuation on short labels (e.g., "Join Game" not "Join Game!"). Full sentences for body copy.
@@ -276,11 +354,18 @@ These constraints apply to every interactive element in Phase 1:
 | Viewport height | `height: 100dvh` | MOBX-01, frontend-stack.md |
 | Touch action on interactive areas | `touch-action: manipulation` | frontend-stack.md — eliminates 300ms tap delay |
 | Scroll bounce prevention | `overscroll-behavior: none` on `body` | frontend-stack.md |
+| Scrollable zones | `overscroll-behavior: contain` on scrollable children (admin player list, group mini-list) | Scopes bounce to the scroll zone |
+| iOS momentum scroll on overflow zones | `overflow-y: auto; -webkit-overflow-scrolling: touch` | Required for smooth scroll on iOS Safari |
 | Input delay to avoid accidental submit | none — rely on form validation state | — |
-| Haptic feedback | `navigator.vibrate(50)` on role selection and join confirmation | ux-game-design.md |
+| Haptic feedback: role selection | `navigator.vibrate(50)` — single 50ms pulse | ux-game-design.md |
+| Haptic feedback: join confirmation | `navigator.vibrate([50, 30, 50])` — double pulse | ux-game-design.md |
+| Focus ring | `outline: 2px solid var(--color-accent)` with `outline-offset: 2px` on `:focus-visible` | WCAG 2.4.7 |
+| Focus ring (pre-role-selection) | `outline: 2px solid #F9FAFB` | Fallback when `--color-accent` is neutral gray |
 | Wake Lock | Not applicable in Phase 1 (no active minigames) | MOBX-03 deferred to Phase 3 |
 | SSR | `export const ssr = false` in every `+page.ts` | MOBX-05, frontend-stack.md |
 | Input mode for code field | `inputmode="text"` with `autocomplete="off"` | UX — avoid numeric keyboard which hides letters |
+| Name field autocomplete | `autocomplete="nickname"` | Allows mobile keyboard suggestion without triggering password manager |
+| Submit timeout | 8 seconds — revert to enabled state + show generic error toast | Phase 1 UX reliability requirement |
 
 ---
 
@@ -288,16 +373,19 @@ These constraints apply to every interactive element in Phase 1:
 
 All animations use CSS or the Web Animations API. No external animation libraries.
 
-| Animation | Duration | Easing | Trigger |
-|-----------|----------|--------|---------|
-| Role button active state | 150ms | `ease-out` | `pointerdown` |
-| CTA button press feedback | 100ms scale(0.97) | `ease-out` | `pointerdown` |
-| CTA disabled → enabled | 200ms opacity | `ease-in-out` | Form validity change |
-| Reconnecting overlay fade-in | 200ms opacity 0→1 | `ease-in` | WS close |
-| Reconnecting overlay fade-out | 300ms opacity 1→0 | `ease-out` | WS open |
-| Three-dot waiting pulse | 1200ms opacity 0.3↔1 | `ease-in-out`, infinite | Always on lobby |
-| Player chip appear (admin list) | 200ms translateY(8px)→0 + opacity | `ease-out` | New player joins |
-| Error message appear | 150ms opacity + translateY(−4px)→0 | `ease-out` | Validation failure |
+| Animation | Duration | Easing | Trigger | Notes |
+|-----------|----------|--------|---------|-------|
+| Role button active state | 150ms | `ease-out` | `pointerdown` | Background fills to role accent color |
+| Role button inactive-to-active | 150ms | `ease-out` | Role confirmed | Border + background + text color all transition together |
+| CTA button press feedback | 100ms `scale(0.97)` | `ease-out` | `pointerdown` | Reverts to `scale(1)` on `pointerup` |
+| CTA disabled → enabled | 200ms opacity | `ease-in-out` | Form validity change | `opacity: 0.4 → 1.0`; `pointer-events: none → all` |
+| Accent color page propagation | 0ms | — | Role selected | Intentionally instantaneous — the abrupt shift is the feedback |
+| Reconnecting overlay fade-in | 200ms opacity `0 → 1` | `ease-in` | WS close | `pointer-events: all` only after opacity reaches 1 |
+| Reconnecting overlay fade-out | 300ms opacity `1 → 0` | `ease-out` | WS open | `pointer-events: none` from the moment dismiss begins |
+| Three-dot waiting pulse | 1200ms opacity `0.3 ↔ 1` | `ease-in-out`, infinite | Always on lobby | Dots staggered 400ms apart; dot 1 at 0ms, dot 2 at 400ms, dot 3 at 800ms |
+| Player chip appear (admin list) | 200ms `translateY(8px) → 0` + opacity `0 → 1` | `ease-out` | New player joins |  |
+| Error message appear | 150ms opacity + `translateY(-4px) → 0` | `ease-out` | Validation failure | Error slides up from below field |
+| CTA spinner rotation | 800ms `rotate(0deg → 360deg)` | `linear`, infinite | Submitting state |  |
 
 ---
 
@@ -313,11 +401,11 @@ No third-party UI registries. All components hand-rolled in Svelte. No shadcn, n
 
 ## Checker Sign-Off
 
-- [ ] Dimension 1 Copywriting: PASS
-- [ ] Dimension 2 Visuals: PASS
-- [ ] Dimension 3 Color: PASS
-- [ ] Dimension 4 Typography: PASS
-- [ ] Dimension 5 Spacing: PASS
-- [ ] Dimension 6 Registry Safety: PASS
+- [x] Dimension 1 Copywriting: PASS
+- [x] Dimension 2 Visuals: PASS
+- [x] Dimension 3 Color: PASS
+- [x] Dimension 4 Typography: PASS
+- [x] Dimension 5 Spacing: PASS
+- [x] Dimension 6 Registry Safety: PASS
 
-**Approval:** pending
+**Approval:** approved 2026-04-07
