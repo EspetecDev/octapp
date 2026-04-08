@@ -12,7 +12,10 @@ The groom has a memorable, personalized gauntlet to run through his own bachelor
 
 ### Validated
 
-(None yet — ship to validate)
+- [x] SvelteKit 5 + Bun WebSocket server on a single Railway service — Validated in Phase 01: Foundation
+- [x] 6-char join code session creation + real-time full-state broadcast — Validated in Phase 01: Foundation
+- [x] Client-side reconnect with exponential backoff + full-state snapshot on reconnect — Validated in Phase 01: Foundation
+- [x] Four production views: join wizard, admin dashboard, groom waiting, group waiting — Validated in Phase 01: Foundation
 
 ### Active
 
@@ -76,4 +79,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-07 after initialization*
+*Last updated: 2026-04-08 — Phase 01 Foundation complete*
