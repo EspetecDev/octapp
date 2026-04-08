@@ -12,7 +12,7 @@
 - [ ] **SESS-03**: On joining, player selects their role (groom or group member) and enters a display name
 - [ ] **SESS-04**: Only one player can claim the groom role per session; others auto-join as group
 - [ ] **SESS-05**: Admin authenticates via a secret token (env var) — no account needed
-- [ ] **SESS-06**: Disconnected players automatically reconnect with exponential backoff and rejoin their session with full current state restored
+- [x] **SESS-06**: Disconnected players automatically reconnect with exponential backoff and rejoin their session with full current state restored
 
 ### Game Structure & Phases
 
@@ -69,14 +69,14 @@
 - [ ] **SYNC-01**: All game state changes (phase unlock, minigame start/end, sabotage activation, score updates) broadcast to all connected clients within 500ms
 - [ ] **SYNC-02**: Server sends full state snapshot to any client that reconnects
 - [ ] **SYNC-03**: Server sends heartbeat ping every 30 seconds to prevent Railway idle timeout from dropping connections
-- [ ] **SYNC-04**: Clients display a "Reconnecting..." overlay when connection is lost; auto-dismiss when restored
+- [x] **SYNC-04**: Clients display a "Reconnecting..." overlay when connection is lost; auto-dismiss when restored
 
 ### Mobile UX
 
 - [ ] **MOBX-01**: All views use `height: 100dvh` and are designed for portrait mobile (no fullscreen API dependency)
 - [ ] **MOBX-02**: All interactive elements are touch-friendly (min 44px tap targets)
-- [ ] **MOBX-03**: Wake Lock is acquired during active minigames and re-acquired on `visibilitychange`
-- [ ] **MOBX-04**: Screen shows a landscape-detection overlay prompting portrait orientation if rotated
+- [x] **MOBX-03**: Wake Lock is acquired during active minigames and re-acquired on `visibilitychange`
+- [x] **MOBX-04**: Screen shows a landscape-detection overlay prompting portrait orientation if rotated
 - [x] **MOBX-05**: SvelteKit SSR is disabled on all game routes; no server-side rendering of browser-API-dependent code
 
 ### Tech Foundation
@@ -84,8 +84,8 @@
 - [x] **TECH-01**: Frontend: SvelteKit 5 with file-based routes (`/`, `/admin`, `/groom`, `/party`)
 - [ ] **TECH-02**: Backend: Bun WebSocket server with in-memory game state (no database)
 - [x] **TECH-03**: Deployed to Railway with HTTPS; a single URL is shareable
-- [ ] **TECH-04**: WebSocket client uses auto-reconnect wrapper (Socket.IO or custom with exponential backoff)
-- [ ] **TECH-05**: Sensor events normalized across iOS and Android before use in minigames
+- [x] **TECH-04**: WebSocket client uses auto-reconnect wrapper (Socket.IO or custom with exponential backoff)
+- [x] **TECH-05**: Sensor events normalized across iOS and Android before use in minigames
 
 ## v2 Requirements
 
