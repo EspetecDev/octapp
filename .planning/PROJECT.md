@@ -16,6 +16,10 @@ The groom has a memorable, personalized gauntlet to run through his own bachelor
 - [x] 6-char join code session creation + real-time full-state broadcast — Validated in Phase 01: Foundation
 - [x] Client-side reconnect with exponential backoff + full-state snapshot on reconnect — Validated in Phase 01: Foundation
 - [x] Four production views: join wizard, admin dashboard, groom waiting, group waiting — Validated in Phase 01: Foundation
+- [x] Admin pre-event setup: configure chapters (trivia questions, scavenger clues, rewards) and power-up/sabotage catalog — Validated in Phase 02: Admin & Game Structure
+- [x] Admin live-night controls: chapter progression via Unlock Chapter, real-time scores view — Validated in Phase 02: Admin & Game Structure
+- [x] Chapter transition: recap card overlay on groom and party pages on chapter unlock — Validated in Phase 02: Admin & Game Structure
+- [x] Game type system: Chapter, TriviaQuestion, PowerUp types + SAVE_SETUP/UNLOCK_CHAPTER handlers — Validated in Phase 02: Admin & Game Structure
 
 ### Active
 
@@ -79,4 +83,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-08 — Phase 01 Foundation complete*
+*Last updated: 2026-04-08 — Phase 02 Admin & Game Structure complete*
