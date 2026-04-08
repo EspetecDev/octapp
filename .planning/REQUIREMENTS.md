@@ -77,13 +77,13 @@
 - [ ] **MOBX-02**: All interactive elements are touch-friendly (min 44px tap targets)
 - [ ] **MOBX-03**: Wake Lock is acquired during active minigames and re-acquired on `visibilitychange`
 - [ ] **MOBX-04**: Screen shows a landscape-detection overlay prompting portrait orientation if rotated
-- [ ] **MOBX-05**: SvelteKit SSR is disabled on all game routes; no server-side rendering of browser-API-dependent code
+- [x] **MOBX-05**: SvelteKit SSR is disabled on all game routes; no server-side rendering of browser-API-dependent code
 
 ### Tech Foundation
 
-- [ ] **TECH-01**: Frontend: SvelteKit 5 with file-based routes (`/`, `/admin`, `/groom`, `/party`)
+- [x] **TECH-01**: Frontend: SvelteKit 5 with file-based routes (`/`, `/admin`, `/groom`, `/party`)
 - [ ] **TECH-02**: Backend: Bun WebSocket server with in-memory game state (no database)
-- [ ] **TECH-03**: Deployed to Railway with HTTPS; a single URL is shareable
+- [x] **TECH-03**: Deployed to Railway with HTTPS; a single URL is shareable
 - [ ] **TECH-04**: WebSocket client uses auto-reconnect wrapper (Socket.IO or custom with exponential backoff)
 - [ ] **TECH-05**: Sensor events normalized across iOS and Android before use in minigames
 

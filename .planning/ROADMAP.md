@@ -29,7 +29,7 @@ Four phases take the project from bare infrastructure to a fully playable group 
 **UI hint**: yes
 
 Plans:
-- [ ] 01-01-PLAN.md — SvelteKit scaffold, Tailwind v4 design tokens, route skeletons, Dockerfile
+- [x] 01-01-PLAN.md — SvelteKit scaffold, Tailwind v4 design tokens, route skeletons, Dockerfile
 - [ ] 01-02-PLAN.md — Bun WebSocket server, session management, state broadcast, admin token gate
 - [ ] 01-03-PLAN.md — Client WebSocket reconnect wrapper, Svelte stores, overlays, Wake Lock + sensor scaffolds
 - [ ] 01-04-PLAN.md — Join page, admin dashboard, groom and group waiting screens (full UI)
@@ -76,7 +76,7 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation | 0/4 | Not started | - |
+| 1. Foundation | 1/4 | In Progress|  |
 | 2. Admin & Game Structure | 0/? | Not started | - |
 | 3. Groom Experience | 0/? | Not started | - |
 | 4. Group Economy & Multiplayer | 0/? | Not started | - |
