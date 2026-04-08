@@ -66,7 +66,6 @@ See: `.planning/PROJECT.md` (updated 2026-04-07)
 | 01-foundation | 01-01 | 37 | 3/3 | 17 |
 | 01-foundation | 01-02 | 20 | 2/2 | 6 |
 | 01-foundation | 01-03 | 82 | 2/2 | 7 |
-| Phase 01-foundation P01-02 | 1 | 2 tasks | 4 files |
 
 ## Next Step
 
