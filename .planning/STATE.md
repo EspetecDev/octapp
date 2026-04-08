@@ -4,12 +4,12 @@ milestone: v1.0
 milestone_name: milestone
 current_plan: 04 / 04
 status: in-progress
-last_updated: "2026-04-08T14:12:30.309Z"
+last_updated: "2026-04-08T14:20:56.742Z"
 progress:
   total_phases: 4
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 4
-  completed_plans: 3
+  completed_plans: 4
 ---
 
 # Project State
@@ -58,6 +58,8 @@ See: `.planning/PROJECT.md` (updated 2026-04-07)
 - [Phase 01-03]: Overlay pointer-events driven by CSS class toggle (.visible), not Svelte {#if} — allows fade-out animation to complete before removing
 - [Phase 01-02]: Single in-memory active session per process (Phase 1 scope); one game at a time
 - [Phase 01-02]: Admin token gate accepts ?token= query param OR x-admin-token header
+- [Phase 01-04]: Join success detection via gameState subscription (name+role match) rather than PLAYER_JOINED message — STATE_SYNC is the authoritative update
+- [Phase 01-04]: Admin real-time player list uses shared gameState store (same WebSocket from root layout) — no additional polling infrastructure needed
 
 ## Performance Metrics
 
@@ -66,6 +68,7 @@ See: `.planning/PROJECT.md` (updated 2026-04-07)
 | 01-foundation | 01-01 | 37 | 3/3 | 17 |
 | 01-foundation | 01-02 | 20 | 2/2 | 6 |
 | 01-foundation | 01-03 | 82 | 2/2 | 7 |
+| Phase 01-foundation P04 | 18 | 2 tasks | 4 files |
 
 ## Next Step
 

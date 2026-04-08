@@ -8,7 +8,7 @@ Four phases take the project from bare infrastructure to a fully playable group 
 
 ## Phases
 
-- [ ] **Phase 1: Foundation** - SvelteKit + Bun WebSocket server, session join-by-code, real-time sync, mobile UX base
+- [x] **Phase 1: Foundation** - SvelteKit + Bun WebSocket server, session join-by-code, real-time sync, mobile UX base (completed 2026-04-08)
 - [ ] **Phase 2: Admin & Game Structure** - In-app content setup, phase state machine, lobby flow, admin dashboard
 - [ ] **Phase 3: Groom Experience** - All 3 minigames, scavenger hunt flow, reward reveals
 - [ ] **Phase 4: Group Economy & Multiplayer** - Token economy, power-up/sabotage catalog, real-time group interactions
@@ -32,7 +32,7 @@ Plans:
 - [x] 01-01-PLAN.md — SvelteKit scaffold, Tailwind v4 design tokens, route skeletons, Dockerfile
 - [x] 01-02-PLAN.md — Bun WebSocket server, session management, state broadcast, admin token gate
 - [x] 01-03-PLAN.md — Client WebSocket reconnect wrapper, Svelte stores, overlays, Wake Lock + sensor scaffolds
-- [ ] 01-04-PLAN.md — Join page, admin dashboard, groom and group waiting screens (full UI)
+- [x] 01-04-PLAN.md — Join page, admin dashboard, groom and group waiting screens (full UI)
 
 ### Phase 2: Admin & Game Structure
 **Goal**: The admin can configure all game content before the event and control the pace of the night by unlocking phases from a live dashboard.
@@ -76,7 +76,7 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation | 2/4 | In Progress|  |
+| 1. Foundation | 4/4 | Complete   | 2026-04-08 |
 | 2. Admin & Game Structure | 0/? | Not started | - |
 | 3. Groom Experience | 0/? | Not started | - |
 | 4. Group Economy & Multiplayer | 0/? | Not started | - |

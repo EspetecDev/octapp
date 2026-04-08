@@ -8,9 +8,9 @@
 ### Session & Joining
 
 - [x] **SESS-01**: Admin can create a new game session and receive a 6-character join code
-- [ ] **SESS-02**: Players join by navigating to the app URL and entering the join code
-- [ ] **SESS-03**: On joining, player selects their role (groom or group member) and enters a display name
-- [ ] **SESS-04**: Only one player can claim the groom role per session; others auto-join as group
+- [x] **SESS-02**: Players join by navigating to the app URL and entering the join code
+- [x] **SESS-03**: On joining, player selects their role (groom or group member) and enters a display name
+- [x] **SESS-04**: Only one player can claim the groom role per session; others auto-join as group
 - [x] **SESS-05**: Admin authenticates via a secret token (env var) — no account needed
 - [x] **SESS-06**: Disconnected players automatically reconnect with exponential backoff and rejoin their session with full current state restored
 
@@ -73,8 +73,8 @@
 
 ### Mobile UX
 
-- [ ] **MOBX-01**: All views use `height: 100dvh` and are designed for portrait mobile (no fullscreen API dependency)
-- [ ] **MOBX-02**: All interactive elements are touch-friendly (min 44px tap targets)
+- [x] **MOBX-01**: All views use `height: 100dvh` and are designed for portrait mobile (no fullscreen API dependency)
+- [x] **MOBX-02**: All interactive elements are touch-friendly (min 44px tap targets)
 - [x] **MOBX-03**: Wake Lock is acquired during active minigames and re-acquired on `visibilitychange`
 - [x] **MOBX-04**: Screen shows a landscape-detection overlay prompting portrait orientation if rotated
 - [x] **MOBX-05**: SvelteKit SSR is disabled on all game routes; no server-side rendering of browser-API-dependent code
