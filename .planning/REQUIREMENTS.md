@@ -16,20 +16,20 @@
 
 ### Game Structure & Phases
 
-- [ ] **GAME-01**: Admin can pre-configure phases before the event (each phase has a name, minigame set, scavenger step, and reward)
-- [ ] **GAME-02**: Game starts in a lobby state; no challenges until admin unlocks the first phase
-- [ ] **GAME-03**: Admin can unlock the next phase from the admin dashboard at any time
-- [ ] **GAME-04**: Each phase is a self-contained chapter: groom completes minigame(s) → scavenger clue → reward reveal
-- [ ] **GAME-05**: Phase transition shows a "new chapter" recap card to all players before the next phase begins
-- [ ] **GAME-06**: Admin can see current session state at all times (who's connected, current phase, scores)
+- [x] **GAME-01**: Admin can pre-configure phases before the event (each phase has a name, minigame set, scavenger step, and reward)
+- [x] **GAME-02**: Game starts in a lobby state; no challenges until admin unlocks the first phase
+- [x] **GAME-03**: Admin can unlock the next phase from the admin dashboard at any time
+- [x] **GAME-04**: Each phase is a self-contained chapter: groom completes minigame(s) → scavenger clue → reward reveal
+- [x] **GAME-05**: Phase transition shows a "new chapter" recap card to all players before the next phase begins
+- [x] **GAME-06**: Admin can see current session state at all times (who's connected, current phase, scores)
 
 ### Admin Setup Flow
 
-- [ ] **ADMN-01**: Admin can configure trivia questions (question text + answer + wrong options) via in-app setup form before the event
-- [ ] **ADMN-02**: Admin can configure scavenger hunt steps (riddle/clue text + optional hint) per phase via setup form
-- [ ] **ADMN-03**: Admin can configure rewards per phase (text description of what is unlocked)
-- [ ] **ADMN-04**: Admin can define the power-up and sabotage catalog (name + description + token cost + effect type)
-- [ ] **ADMN-05**: Setup content is persisted in server memory and survives admin reconnects within the same session
+- [x] **ADMN-01**: Admin can configure trivia questions (question text + answer + wrong options) via in-app setup form before the event
+- [x] **ADMN-02**: Admin can configure scavenger hunt steps (riddle/clue text + optional hint) per phase via setup form
+- [x] **ADMN-03**: Admin can configure rewards per phase (text description of what is unlocked)
+- [x] **ADMN-04**: Admin can define the power-up and sabotage catalog (name + description + token cost + effect type)
+- [x] **ADMN-05**: Setup content is persisted in server memory and survives admin reconnects within the same session
 
 ### Minigames — Groom
 
