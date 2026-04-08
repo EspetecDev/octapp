@@ -49,7 +49,7 @@ Plans:
 
 Plans:
 - [x] 02-01-PLAN.md — Extend GameState type contracts (Chapter, TriviaQuestion, PowerUp, new message unions) in both src/lib/types.ts and server/state.ts
-- [ ] 02-02-PLAN.md — Server handlers: SAVE_SETUP and UNLOCK_CHAPTER with validation, score initialization, servedQuestionIndex
+- [x] 02-02-PLAN.md — Server handlers: SAVE_SETUP and UNLOCK_CHAPTER with validation, score initialization, servedQuestionIndex
 - [ ] 02-03-PLAN.md — /admin/setup pre-event setup form (chapters, trivia pool, scavenger, rewards, power-up catalog)
 - [ ] 02-04-PLAN.md — Admin dashboard Zone 3+4 (chapter control, scores) and recap card overlay on groom/party pages
 
@@ -83,6 +83,6 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation | 4/4 | Complete   | 2026-04-08 |
-| 2. Admin & Game Structure | 1/4 | In Progress|  |
+| 2. Admin & Game Structure | 2/4 | In Progress|  |
 | 3. Groom Experience | 0/? | Not started | - |
 | 4. Group Economy & Multiplayer | 0/? | Not started | - |
