@@ -25,8 +25,14 @@ Four phases take the project from bare infrastructure to a fully playable group 
   3. Only one player can claim the groom role; a second attempt is rejected with a clear message
   4. When a player locks their phone and unlocks it, the connection restores automatically and the "Reconnecting..." overlay appears then dismisses without a hard reload
   5. All views fill the full viewport on iOS Safari without layout breakage, and a landscape-detection overlay appears if the phone is rotated
-**Plans**: TBD
+**Plans**: 4 plans
 **UI hint**: yes
+
+Plans:
+- [ ] 01-01-PLAN.md — SvelteKit scaffold, Tailwind v4 design tokens, route skeletons, Dockerfile
+- [ ] 01-02-PLAN.md — Bun WebSocket server, session management, state broadcast, admin token gate
+- [ ] 01-03-PLAN.md — Client WebSocket reconnect wrapper, Svelte stores, overlays, Wake Lock + sensor scaffolds
+- [ ] 01-04-PLAN.md — Join page, admin dashboard, groom and group waiting screens (full UI)
 
 ### Phase 2: Admin & Game Structure
 **Goal**: The admin can configure all game content before the event and control the pace of the night by unlocking phases from a live dashboard.
@@ -70,7 +76,7 @@ Four phases take the project from bare infrastructure to a fully playable group 
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation | 0/? | Not started | - |
+| 1. Foundation | 0/4 | Not started | - |
 | 2. Admin & Game Structure | 0/? | Not started | - |
 | 3. Groom Experience | 0/? | Not started | - |
 | 4. Group Economy & Multiplayer | 0/? | Not started | - |
