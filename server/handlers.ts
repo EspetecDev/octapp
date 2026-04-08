@@ -1,5 +1,5 @@
 import type { ServerWebSocket, Server } from "bun";
-import { getState, setState, broadcastState, type Player } from "./state.ts";
+import { getState, setState, broadcastState, type Player, type Chapter, type PowerUp } from "./state.ts";
 import { getSession } from "./session.ts";
 
 // Data attached to each WebSocket connection (available as ws.data)
@@ -11,7 +11,9 @@ export type WSData = {
 type IncomingMessage =
   | { type: "JOIN"; sessionCode: string; name: string; role: "groom" | "group" }
   | { type: "REJOIN"; playerId: string; sessionCode: string }
-  | { type: "PONG" };
+  | { type: "PONG" }
+  | { type: "SAVE_SETUP"; chapters: Chapter[]; powerUpCatalog: PowerUp[] }
+  | { type: "UNLOCK_CHAPTER" };
 
 export function handleOpen(ws: ServerWebSocket<WSData>, server: Server): void {
   // Subscribe this connection to the game broadcast channel
@@ -122,6 +124,75 @@ export function handleMessage(
   }
 
   // PONG — no-op; ping alone keeps Railway alive
+
+  if (msg.type === "SAVE_SETUP") {
+    const state = getState();
+    if (!state || state.phase !== "lobby") {
+      ws.send(JSON.stringify({
+        type: "ERROR",
+        code: "UNKNOWN",
+        message: "Setup is locked after the game starts.",
+      }));
+      return;
+    }
+    setState((s) => ({
+      ...s,
+      chapters: msg.chapters,
+      powerUpCatalog: msg.powerUpCatalog,
+    }));
+    broadcastState(server);
+    return;
+  }
+
+  if (msg.type === "UNLOCK_CHAPTER") {
+    const state = getState();
+    if (!state) return;
+
+    const nextIndex = state.activeChapterIndex === null ? 0 : state.activeChapterIndex + 1;
+
+    if (state.chapters.length === 0 || nextIndex >= state.chapters.length) {
+      ws.send(JSON.stringify({
+        type: "ERROR",
+        code: "UNKNOWN",
+        message: nextIndex >= state.chapters.length
+          ? "No more chapters."
+          : "No chapters configured. Set up the game first.",
+      }));
+      return;
+    }
+
+    setState((s) => {
+      // Initialize scores to 0 for all current players on the first unlock (D-07)
+      const scores: Record<string, number> = { ...s.scores };
+      if (s.activeChapterIndex === null) {
+        s.players.forEach((p) => { if (!(p.id in scores)) scores[p.id] = 0; });
+      }
+
+      // Set servedQuestionIndex on the newly active chapter (Pitfall 5 fix)
+      // Pick a random question from the trivia pool; null if pool is empty or not trivia
+      const updatedChapters = s.chapters.map((ch, i) => {
+        if (i !== nextIndex) return ch;
+        if (ch.minigameType !== "trivia" || ch.triviaPool.length === 0) {
+          return { ...ch, servedQuestionIndex: null };
+        }
+        return {
+          ...ch,
+          servedQuestionIndex: Math.floor(Math.random() * ch.triviaPool.length),
+        };
+      });
+
+      return {
+        ...s,
+        phase: "active",
+        activeChapterIndex: nextIndex,
+        scores,
+        chapters: updatedChapters,
+      };
+    });
+
+    broadcastState(server);
+    return;
+  }
 }
 
 export function handleClose(
