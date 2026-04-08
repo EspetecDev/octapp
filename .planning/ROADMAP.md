@@ -30,7 +30,7 @@ Four phases take the project from bare infrastructure to a fully playable group 
 
 Plans:
 - [x] 01-01-PLAN.md — SvelteKit scaffold, Tailwind v4 design tokens, route skeletons, Dockerfile
-- [ ] 01-02-PLAN.md — Bun WebSocket server, session management, state broadcast, admin token gate
+- [x] 01-02-PLAN.md — Bun WebSocket server, session management, state broadcast, admin token gate
 - [x] 01-03-PLAN.md — Client WebSocket reconnect wrapper, Svelte stores, overlays, Wake Lock + sensor scaffolds
 - [ ] 01-04-PLAN.md — Join page, admin dashboard, groom and group waiting screens (full UI)
 
