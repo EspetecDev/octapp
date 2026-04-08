@@ -40,6 +40,8 @@ key-files:
     - src/routes/admin/+page.svelte
     - src/routes/groom/+page.svelte
     - src/routes/party/+page.svelte
+    - src/app.css
+    - src/routes/+layout.svelte
 
 key-decisions:
   - "Join success detection via gameState subscription (match name+role) rather than PLAYER_JOINED message — more reliable since STATE_SYNC arrives after PLAYER_JOINED and both are needed for navigation"
@@ -60,8 +62,8 @@ completed: 2026-04-08
 - **Duration:** ~18 min
 - **Started:** 2026-04-08T14:17:10Z
 - **Completed:** 2026-04-08T14:35:00Z
-- **Tasks:** 2/3 auto tasks complete (Task 3 is human-verify checkpoint)
-- **Files modified:** 4
+- **Tasks:** 3/3 complete
+- **Files modified:** 6
 
 ## Accomplishments
 
@@ -76,7 +78,7 @@ Each task was committed atomically:
 
 1. **Task 1: Join page** — `53cd387` (feat)
 2. **Task 2: Admin, Groom, Party pages** — `ba886a1` (feat)
-3. **Task 3: End-to-end human verification** — pending checkpoint
+3. **Task 3: Human verification fixes** — `208b2d2` (fix) — viewport width + LandscapeOverlay removal
 
 ## Files Created/Modified
 
@@ -84,6 +86,8 @@ Each task was committed atomically:
 - `src/routes/admin/+page.svelte` — Admin dashboard with token gate, session code, real-time player list
 - `src/routes/groom/+page.svelte` — Groom waiting screen with amber role badge, name display, three-dot pulse
 - `src/routes/party/+page.svelte` — Group waiting screen with red badge, live count, scrollable member list
+- `src/app.css` — Added `width: 100%` and `min-height: 100%` to html/body for full viewport fill
+- `src/routes/+layout.svelte` — Removed LandscapeOverlay (landscape mode now supported)
 
 ## Decisions Made
 
@@ -116,6 +120,20 @@ Each task was committed atomically:
 - **Files modified:** src/routes/+page.svelte
 - **Commit:** 53cd387
 
+**4. [Human Verify] Fixed viewport width — views too narrow on device**
+- **Found during:** Task 3 (human verification)
+- **Issue:** html/body lacked `width: 100%`, causing views to render narrower than the full viewport on some browsers/devices.
+- **Fix:** Added `width: 100%` and `min-height: 100%` to html/body in `src/app.css`.
+- **Files modified:** src/app.css
+- **Commit:** 208b2d2
+
+**5. [Human Verify] Removed LandscapeOverlay — landscape mode required**
+- **Found during:** Task 3 (human verification)
+- **Issue:** The LandscapeOverlay blocked the entire UI in landscape orientation. This is a party/wedding game where landscape must be supported (players may naturally hold their phone any way).
+- **Fix:** Removed LandscapeOverlay import and `<LandscapeOverlay />` usage from `src/routes/+layout.svelte`. The LandscapeOverlay.svelte component file is left in place but is no longer mounted.
+- **Files modified:** src/routes/+layout.svelte
+- **Commit:** 208b2d2
+
 ## Known Stubs
 
 None — all four pages are fully implemented with real data sources wired.
@@ -127,8 +145,9 @@ Verified:
 - `src/routes/admin/+page.svelte` EXISTS and contains `Access denied.`, `Waiting for players`, `overscroll-behavior: contain`, `min-h-[100dvh]`
 - `src/routes/groom/+page.svelte` EXISTS and contains `You are the Groom`, `Waiting for the game to start...`, `animation-delay: 400ms`, `min-h-[100dvh]`
 - `src/routes/party/+page.svelte` EXISTS and contains `You're in the Group`, `The game starts when your host is ready.`, `max-height: 200px`, `overscroll-behavior: contain`
-- `bun run build` exits 0
-- Commits 53cd387, ba886a1 present in git log
+- `src/app.css` EXISTS and contains `width: 100%` on html/body
+- `src/routes/+layout.svelte` EXISTS and does NOT contain `LandscapeOverlay`
+- Commits 53cd387, ba886a1, 208b2d2 present in git log
 
 ---
 *Phase: 01-foundation*

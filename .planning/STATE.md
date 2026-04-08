@@ -4,7 +4,7 @@ milestone: v1.0
 milestone_name: milestone
 current_plan: 04 / 04
 status: in-progress
-last_updated: "2026-04-08T14:20:56.742Z"
+last_updated: "2026-04-08T14:28:53.526Z"
 progress:
   total_phases: 4
   completed_phases: 1
@@ -23,14 +23,14 @@ See: `.planning/PROJECT.md` (updated 2026-04-07)
 
 ## Current Status
 
-**Stage:** In progress — Phase 01 Plan 03 complete
-**Active phase:** 01-foundation
-**Current Plan:** 04 / 04
-**Last action:** Completed 01-03-PLAN.md (2026-04-08)
+**Stage:** Phase 01 complete — all 4 plans done
+**Active phase:** 02-admin-game-structure (next)
+**Current Plan:** 04 / 04 (phase complete)
+**Last action:** Completed 01-04-PLAN.md (2026-04-08)
 
 ## Phase Progress
 
-- [ ] Phase 1: Foundation (3/4 plans complete)
+- [x] Phase 1: Foundation (4/4 plans complete)
 - [ ] Phase 2: Admin & Game Structure
 - [ ] Phase 3: Groom Experience
 - [ ] Phase 4: Group Economy & Multiplayer
@@ -42,7 +42,7 @@ See: `.planning/PROJECT.md` (updated 2026-04-07)
 | 01-01 | Bootstrap SvelteKit Monorepo | DONE | 4f0f3b6 |
 | 01-02 | Bun WebSocket Server | DONE | b32f02a |
 | 01-03 | WebSocket Reconnect Client | DONE | 72d25e9 |
-| 01-04 | Player Join Flow | pending | — |
+| 01-04 | Player Join Flow | DONE | 208b2d2 |
 
 ## Decisions Made
 
@@ -60,6 +60,7 @@ See: `.planning/PROJECT.md` (updated 2026-04-07)
 - [Phase 01-02]: Admin token gate accepts ?token= query param OR x-admin-token header
 - [Phase 01-04]: Join success detection via gameState subscription (name+role match) rather than PLAYER_JOINED message — STATE_SYNC is the authoritative update
 - [Phase 01-04]: Admin real-time player list uses shared gameState store (same WebSocket from root layout) — no additional polling infrastructure needed
+- [Phase 01-04]: LandscapeOverlay removed — landscape mode must be supported in a party game; overlay was blocking entire UI
 
 ## Performance Metrics
 
@@ -68,11 +69,11 @@ See: `.planning/PROJECT.md` (updated 2026-04-07)
 | 01-foundation | 01-01 | 37 | 3/3 | 17 |
 | 01-foundation | 01-02 | 20 | 2/2 | 6 |
 | 01-foundation | 01-03 | 82 | 2/2 | 7 |
-| Phase 01-foundation P04 | 18 | 2 tasks | 4 files |
+| 01-foundation | 01-04 | 45 | 3/3 | 6 |
 
 ## Next Step
 
-Execute Plan 04: `/gsd:execute-phase 01-foundation 04`
+Phase 01 complete. Begin Phase 02: `/gsd:execute-phase 02-admin-game-structure 01`
 
 ---
-*Last updated: 2026-04-08 after 01-03 completion*
+*Last updated: 2026-04-08 after 01-04 completion*
