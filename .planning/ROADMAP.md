@@ -44,8 +44,14 @@ Plans:
   3. The game starts in a lobby state; no challenge content is visible to players until the admin explicitly unlocks Phase 1
   4. Unlocking a phase triggers a "new chapter" recap card visible to all connected players before challenges appear
   5. Admin dashboard shows who is currently connected, the active phase, and current scores at all times
-**Plans**: TBD
+**Plans**: 4 plans
 **UI hint**: yes
+
+Plans:
+- [ ] 02-01-PLAN.md — Extend GameState type contracts (Chapter, TriviaQuestion, PowerUp, new message unions) in both src/lib/types.ts and server/state.ts
+- [ ] 02-02-PLAN.md — Server handlers: SAVE_SETUP and UNLOCK_CHAPTER with validation, score initialization, servedQuestionIndex
+- [ ] 02-03-PLAN.md — /admin/setup pre-event setup form (chapters, trivia pool, scavenger, rewards, power-up catalog)
+- [ ] 02-04-PLAN.md — Admin dashboard Zone 3+4 (chapter control, scores) and recap card overlay on groom/party pages
 
 ### Phase 3: Groom Experience
 **Goal**: The groom can play through all three minigame types, complete scavenger steps, and unlock rewards — the full arc of a single game night.
@@ -77,6 +83,6 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation | 4/4 | Complete   | 2026-04-08 |
-| 2. Admin & Game Structure | 0/? | Not started | - |
+| 2. Admin & Game Structure | 0/4 | Not started | - |
 | 3. Groom Experience | 0/? | Not started | - |
 | 4. Group Economy & Multiplayer | 0/? | Not started | - |
