@@ -1,0 +1,77 @@
+@import "tailwindcss";
+
+@theme {
+  /* Surfaces */
+  --color-bg: #0f0f0f;
+  --color-surface: #1c1c1e;
+  --color-border: #2d2d2f;
+
+  /* Text */
+  --color-text-primary: #f9fafb;
+  --color-text-secondary: #9ca3af;
+
+  /* Role accents */
+  --color-accent-groom: #f59e0b;
+  --color-accent-group: #ef4444;
+  --color-accent-admin: #6b7280;
+
+  /* Semantic */
+  --color-success: #22c55e;
+  --color-destructive: #ef4444;
+
+  /* Typography */
+  --font-size-label: 14px;
+  --font-size-body: 16px;
+  --font-size-heading: 24px;
+  --font-size-display: 40px;
+
+  /* Spacing (multiples of 4) */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+  --spacing-2xl: 48px;
+  --spacing-3xl: 64px;
+
+  /* Animation durations */
+  --duration-fast: 100ms;
+  --duration-normal: 200ms;
+  --duration-slow: 300ms;
+}
+
+/* Global reset for mobile — no scroll bounce on body (RESEARCH.md Interaction Constraints) */
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #0f0f0f;
+  color: #f9fafb;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 16px;
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Touch-friendly tap delay elimination on all interactive elements */
+button,
+a,
+input,
+select,
+[role="button"] {
+  touch-action: manipulation;
+}
+
+/* Focus ring — pre-role-selection default (role-specific override set via CSS var at runtime) */
+:focus-visible {
+  outline: 2px solid #f9fafb;
+  outline-offset: 2px;
+}
+
+/* Minimum tap target enforcement */
+button,
+[role="button"],
+input[type="submit"] {
+  min-height: 44px;
+  min-width: 44px;
+}
