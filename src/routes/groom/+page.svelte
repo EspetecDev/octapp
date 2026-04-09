@@ -1,7 +1,8 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { gameState, getStoredPlayerId } from "$lib/socket.ts";
+  import { gameState, getStoredPlayerId, lastEffect } from "$lib/socket.ts";
   import { sendMessage } from "$lib/socket.ts";
+  import type { EffectActivatedPayload } from "$lib/socket.ts";
   import { acquireWakeLock, releaseWakeLock } from "$lib/wakeLock.ts";
   import type { Player, Chapter } from "$lib/types.ts";
   // Component imports — implemented in Plans 03, 04, 05, 06
@@ -59,6 +60,33 @@
       releaseWakeLock();
     }
   });
+
+  // Announcement overlay state (GRPX-06, D-07/D-08/D-09)
+  // Page-level only — minigame components handle gameplay effects; this is for the theatrical announcement
+  let showAnnouncement = $state(false);
+  let announcementData = $state<EffectActivatedPayload | null>(null);
+  let announceDismissTimer: ReturnType<typeof setTimeout> | null = null;
+
+  $effect(() => {
+    const effect = $lastEffect;
+    if (!effect) return;
+    announcementData = effect;
+    showAnnouncement = true;
+    if (announceDismissTimer) clearTimeout(announceDismissTimer);
+    announceDismissTimer = setTimeout(() => {
+      showAnnouncement = false;
+    }, 2000);
+  });
+
+  let isSabotage = $derived(
+    announcementData?.effectType === "timer_reduce" ||
+    announcementData?.effectType === "scramble_options" ||
+    announcementData?.effectType === "distraction"
+  );
+
+  let activatingPlayerName = $derived(
+    $gameState?.players.find((p) => p.id === announcementData?.activatedBy)?.name?.toUpperCase() ?? ""
+  );
 
   onMount(() => {
     myPlayerId = getStoredPlayerId();
@@ -128,6 +156,19 @@
       </div>
     </div>
   {/if}
+
+  <!-- Announcement overlay (GRPX-06, D-07/D-08/D-09) — appears on all clients on EFFECT_ACTIVATED -->
+  <!-- z-index: 100 — above all overlays per UI-SPEC; pointer-events: none — auto-dismisses, no user interaction -->
+  <div
+    class="announcement-overlay"
+    class:visible={showAnnouncement}
+    style="background: {isSabotage ? 'rgba(239, 68, 68, 0.85)' : 'rgba(245, 158, 11, 0.85)'};"
+    role="status"
+    aria-live="assertive"
+  >
+    <p class="announce-player">{activatingPlayerName}</p>
+    <p class="announce-powerup">{isSabotage ? '⚡' : '✨'} {announcementData?.powerUpName ?? ''}</p>
+  </div>
 </main>
 
 <style>
@@ -199,6 +240,43 @@
   .recap-progress {
     font-size: 14px; /* --font-size-label */
     color: #9ca3af; /* --color-text-secondary */
+    margin: 0;
+  }
+
+  /* Announcement overlay (GRPX-06, D-07/D-08/D-09) — mirrors recap-overlay pattern */
+  .announcement-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 100; /* above all overlays per UI-SPEC */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    opacity: 0;
+    pointer-events: none; /* always none — auto-dismisses, no user interaction */
+    transition: opacity 200ms ease;
+    padding: 64px 32px;
+    text-align: center;
+  }
+  .announcement-overlay.visible {
+    opacity: 1;
+    pointer-events: none; /* always none — auto-dismisses, no user interaction */
+  }
+  .announce-player {
+    font-size: 64px; /* component-scoped override — theatrical impact, NOT a system token */
+    font-weight: 700;
+    color: #f9fafb;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    line-height: 1.1;
+    margin: 0;
+  }
+  .announce-powerup {
+    font-size: 40px; /* --font-size-display token */
+    font-weight: 700;
+    color: #f9fafb;
+    line-height: 1.1;
     margin: 0;
   }
 </style>
