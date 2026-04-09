@@ -34,12 +34,12 @@
 ### Minigames — Groom
 
 - [ ] **MINI-01**: Trivia minigame — groom sees a question and 4 answer options, has 15–20 seconds to answer; questions drawn from admin-configured set
-- [ ] **MINI-02**: Phone sensor minigame — groom tilts/moves their phone to complete a challenge (e.g., keep a ball balanced, tilt to fill a meter); uses DeviceMotion/DeviceOrientation APIs with iOS permission gate
+- [x] **MINI-02**: Phone sensor minigame — groom tilts/moves their phone to complete a challenge (e.g., keep a ball balanced, tilt to fill a meter); uses DeviceMotion/DeviceOrientation APIs with iOS permission gate
 - [ ] **MINI-03**: Memory/matching minigame — groom matches pairs of cards within a time limit (30–45 seconds)
 - [x] **MINI-04**: Each minigame shows a radial countdown timer visible at a glance
-- [ ] **MINI-05**: Completing a minigame earns the groom points; failing costs points or triggers a penalty
-- [ ] **MINI-06**: Minigame result shows full-screen celebration (win) or brief dismissal (loss) with haptic feedback
-- [ ] **MINI-07**: Sensor minigame includes a tap-to-enable permission gate before DeviceMotion is accessed (iOS requirement)
+- [x] **MINI-05**: Completing a minigame earns the groom points; failing costs points or triggers a penalty
+- [x] **MINI-06**: Minigame result shows full-screen celebration (win) or brief dismissal (loss) with haptic feedback
+- [x] **MINI-07**: Sensor minigame includes a tap-to-enable permission gate before DeviceMotion is accessed (iOS requirement)
 
 ### Scavenger Hunt
 

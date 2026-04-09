@@ -4,12 +4,12 @@ milestone: v1.0
 milestone_name: milestone
 current_plan: 1
 status: Executing Phase 03
-last_updated: "2026-04-09T06:44:34.674Z"
+last_updated: "2026-04-09T06:51:44.589Z"
 progress:
   total_phases: 4
   completed_phases: 2
   total_plans: 15
-  completed_plans: 10
+  completed_plans: 11
 ---
 
 # Project State
@@ -73,6 +73,8 @@ See: `.planning/PROJECT.md` (updated 2026-04-07)
 - [Phase 03-groom-experience]: RadialCountdown $effect returns clearInterval cleanup — prevents Pitfall 6 (timer running after win/expire)
 - [Phase 03-groom-experience]: Recap overlay placed as sibling after all {#if screen} blocks — ensures visibility from all screens, not just waiting
 - [Phase 03-groom-experience]: Stub components created in 03-02 to enable parallel implementation in Plans 03-03 through 03-06
+- [Phase 03-groom-experience]: requestPermission called only from button onclick — iOS 13+ hard platform constraint
+- [Phase 03-groom-experience]: SensorMinigame normalization: (reading.x + 9.8) / 9.8 for tilt-right fill; win at normalized >= 0.8
 
 ## Performance Metrics
 
@@ -87,6 +89,7 @@ See: `.planning/PROJECT.md` (updated 2026-04-07)
 | Phase 02-admin-game-structure P03 | 8 | 1 tasks | 1 files |
 | Phase 02-admin-game-structure P04 | 15 | 2 tasks | 3 files |
 | Phase 03-groom-experience P02 | 6 | 2 tasks | 7 files |
+| Phase 03-groom-experience P04 | 5 | 1 tasks | 1 files |
 
 ## Next Step
 
