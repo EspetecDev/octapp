@@ -17,7 +17,8 @@ type IncomingMessage =
   | { type: "MINIGAME_COMPLETE"; result: "win" | "loss" }
   | { type: "SCAVENGER_DONE" }
   | { type: "HINT_REQUEST" }
-  | { type: "SPEND_TOKEN"; powerUpIndex: number };
+  | { type: "SPEND_TOKEN"; powerUpIndex: number }
+  | { type: "EARN_TOKEN" };
 
 export function handleOpen(ws: ServerWebSocket<WSData>, server: Server): void {
   // Subscribe this connection to the game broadcast channel
@@ -305,6 +306,36 @@ export function handleMessage(
     return;
   }
 }
+
+  if (msg.type === "EARN_TOKEN") {
+    const state = getState();
+    if (!state || state.activeChapterIndex === null) return;
+
+    const earnerId = ws.data.playerId;
+    if (!earnerId) return;
+
+    // Only group players can earn tokens
+    const earner = state.players.find((p) => p.id === earnerId);
+    if (!earner || earner.role !== "group") return;
+
+    const currentBalance = state.tokenBalances?.[earnerId] ?? 0;
+    const cap = state.startingTokens ?? 0;
+
+    // Cap: balance cannot exceed 2× startingTokens (earn up to startingTokens extra)
+    const maxBalance = cap * 2;
+    if (currentBalance >= maxBalance) return; // already at earn cap — silently drop
+
+    setState((s) => ({
+      ...s,
+      tokenBalances: {
+        ...s.tokenBalances,
+        [earnerId]: Math.min((s.tokenBalances?.[earnerId] ?? 0) + 1, maxBalance),
+      },
+    }));
+
+    broadcastState(server);
+    return;
+  }
 
 export function handleClose(
   ws: ServerWebSocket<WSData>,

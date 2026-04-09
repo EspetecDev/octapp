@@ -71,4 +71,5 @@ export type ClientMessage =
   | { type: "MINIGAME_COMPLETE"; result: "win" | "loss" }
   | { type: "SCAVENGER_DONE" }
   | { type: "HINT_REQUEST" }
-  | { type: "SPEND_TOKEN"; powerUpIndex: number };
+  | { type: "SPEND_TOKEN"; powerUpIndex: number }
+  | { type: "EARN_TOKEN" };

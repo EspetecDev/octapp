@@ -162,6 +162,7 @@
   function handleEarnTap() {
     if (earnedThisChallenge >= EARN_CAP) return;
     earnedThisChallenge += 1;
+    sendMessage({ type: "EARN_TOKEN" });
     if ("vibrate" in navigator) navigator.vibrate(50);
     // Green flash
     earnFlash = true;
