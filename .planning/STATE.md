@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 current_plan: 1
-status: Executing Phase 04
-last_updated: "2026-04-09T21:28:36.869Z"
+status: Phase 04 Complete — All phases done
+last_updated: "2026-04-09T23:30:00Z"
 progress:
   total_phases: 4
   completed_phases: 4
@@ -19,21 +19,21 @@ progress:
 See: `.planning/PROJECT.md` (updated 2026-04-07)
 
 **Core value:** The groom has a memorable, personalized gauntlet to run through his own bachelor party — driven by his friends, full of surprises.
-**Current focus:** Phase 04 — Group Economy & Multiplayer
+**Current focus:** All 4 phases complete — Milestone v1.0 achieved
 
 ## Current Status
 
-**Stage:** Phase 01 complete — all 4 plans done
-**Active phase:** 02-admin-game-structure (next)
-**Current Plan:** 1
-**Last action:** Completed 01-04-PLAN.md (2026-04-08)
+**Stage:** Phase 04 complete — all 4 phases verified
+**Active phase:** None (all phases done)
+**Current Plan:** N/A
+**Last action:** Phase 04 verification passed (2026-04-09) — EARN_TOKEN handler placement fix confirmed, server builds clean, 7/7 must-haves verified
 
 ## Phase Progress
 
 - [x] Phase 1: Foundation (4/4 plans complete)
-- [ ] Phase 2: Admin & Game Structure
-- [ ] Phase 3: Groom Experience
-- [ ] Phase 4: Group Economy & Multiplayer
+- [x] Phase 2: Admin & Game Structure (4/4 plans complete)
+- [x] Phase 3: Groom Experience (7/7 plans complete)
+- [x] Phase 4: Group Economy & Multiplayer (4/4 plans complete, verified 2026-04-09)
 
 ## Plan Progress — Phase 01
 
@@ -87,6 +87,7 @@ See: `.planning/PROJECT.md` (updated 2026-04-07)
 - [Phase 04-03]: shuffleSeed increment pattern for forced $derived re-evaluation via void dep inside $derived IIFE
 - [Phase 04-group-economy-multiplayer]: earnedThisChallenge reset uses initialSyncDone guard to avoid false reset on first STATE_SYNC (Pitfall 3)
 - [Phase 04-group-economy-multiplayer]: handleSpend maps filteredShop index to catalog index via indexOf before sending SPEND_TOKEN (D-04/D-13)
+- [Phase 04-group-economy-multiplayer]: EARN_TOKEN handler must be inside handleMessage() function body — bare return statements at module scope are illegal in ESM (Pitfall: placement bug)
 
 ## Performance Metrics
 
@@ -111,7 +112,7 @@ See: `.planning/PROJECT.md` (updated 2026-04-07)
 
 ## Next Step
 
-Phase 01 complete. Begin Phase 02: `/gsd:execute-phase 02-admin-game-structure 01`
+All 4 phases complete. Milestone v1.0 achieved. Ready for device testing and deployment.
 
 ---
-*Last updated: 2026-04-08 after 01-04 completion*
+*Last updated: 2026-04-09 after Phase 04 verification pass*
