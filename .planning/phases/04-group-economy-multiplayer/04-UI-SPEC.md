@@ -50,7 +50,7 @@ Exceptions:
 
 ## Typography
 
-All four sizes already declared in `src/app.css`. Phase 4 adds one exception for announcement overlay.
+All four sizes already declared in `src/app.css`. Phase 4 uses these four sizes only.
 
 | Role | Size | Weight | Line Height | Usage in Phase 4 |
 |------|------|--------|-------------|------------------|
@@ -58,9 +58,10 @@ All four sizes already declared in `src/app.css`. Phase 4 adds one exception for
 | Body | 16px | 400 (regular) | 1.5 | Shop item description, token balance secondary context, waiting screen body text |
 | Heading | 24px | 700 (bold) | 1.2 | Section headers ("GROUP SHOP"), player name in social feed, shop item name |
 | Display | 40px | 700 (bold) | 1.1 | Token balance ("💰 7"), earn button tap count, chapter name on waiting screen |
-| Announcement name | 64px | 700 (bold) | 1.0 | Activating player's name in full-screen overlay (theatrical impact — exception to declared display size) |
 
 Two weights only: 400 and 700. No 500, 600, or other intermediate weights.
+
+Note: The AnnouncementOverlay uses a 64px bold size for the activating player's name (Line 1). This is a one-off component-scoped override for theatrical impact — it is NOT a declared system token. See AnnouncementOverlay in Component Inventory for details.
 
 ---
 
@@ -123,6 +124,7 @@ Single-screen layout, full-height (`min-h-[100dvh]`), `flex flex-col`, no scroll
 - Each shop item: card row (`bg-surface border border-border rounded-lg px-4 py-3`, min 64px height)
   - Left: item name (16px bold, text-primary) + description (14px, text-secondary, max 2 lines)
   - Right: cost badge (`{N} tokens`, 14px, rounded pill, bg `#1c1c1e` border `#2d2d2f`) + "Spend" button (48px wide, 36px height, `bg-accent-group rounded-lg`, disabled state as above)
+  - "Spend" label is intentionally a single word — spatial economy on small row cards (D-04: fast shop interaction during live challenge). The token cost badge immediately adjacent provides the noun context.
 - Items filtered by `chapter.minigameType` (client-side, D-16/D-17)
 - Items sorted: timer_add first (positive), then timer_reduce and distraction (sabotages)
 - Scroll container: `-webkit-overflow-scrolling: touch; overscroll-behavior: contain`
@@ -174,8 +176,8 @@ CSS pattern mirrors existing recap-overlay:
 Background: sabotage = `rgba(239, 68, 68, 0.85)` over `#0f0f0f`; power-up = `rgba(245, 158, 11, 0.85)` over `#0f0f0f`.
 
 Content (centered column, gap 16px):
-- Line 1: activating player's name — **64px, bold, text-primary, uppercase, letter-spacing 0.05em**
-- Line 2: effect prefix + power-up name — **40px (display), bold, text-primary** — prefix is ⚡ for sabotages, ✨ for power-ups
+- Line 1: activating player's name — **64px, bold, text-primary, uppercase, letter-spacing 0.05em** (component-scoped override — 64px is NOT a system token; this size is internal to AnnouncementOverlay only, used for theatrical impact on the player reveal)
+- Line 2: effect prefix + power-up name — **40px (display token), bold, text-primary** — prefix is ⚡ for sabotages, ✨ for power-ups
 
 Auto-dismisses after 2000ms. Triggered by `EFFECT_ACTIVATED` message received on all clients.
 
@@ -262,6 +264,7 @@ When `EFFECT_ACTIVATED` arrives with `effectType: "timer_add"` or `timer_reduce`
 | Token balance display | "💰 {N} tokens" |
 | Token balance (singular) | "💰 1 token" |
 | Shop section header | GROUP SHOP |
+| Shop item spend button | "Spend" — single-word label, intentional (D-04: fast shop interaction / spatial economy on small row cards; cost badge immediately adjacent provides token-noun context) |
 | Groom progress label | "CHAPTER {N} — {chapter.name}" |
 | Groom progress (no active timer) | "Waiting for groom..." |
 | Social feed header | RECENT ACTIONS |
