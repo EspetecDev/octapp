@@ -69,7 +69,7 @@ Plans:
 Plans:
 - [x] 03-01-PLAN.md — Type contracts + server handlers (Chapter fields, 3 new ClientMessages, MINIGAME_COMPLETE/SCAVENGER_DONE/HINT_REQUEST)
 - [x] 03-02-PLAN.md — RadialCountdown shared component + groom page screen router skeleton + stub components
-- [ ] 03-03-PLAN.md — TriviaMinigame component (question + 4 options + 15s countdown + win/loss overlay)
+- [x] 03-03-PLAN.md — TriviaMinigame component (question + 4 options + 15s countdown + win/loss overlay)
 - [ ] 03-04-PLAN.md — SensorMinigame component (iOS permission gate + tilt meter + 30s countdown + win/loss overlay)
 - [ ] 03-05-PLAN.md — MemoryMinigame component (4×3 card grid + CSS flip + pair matching + 30s countdown)
 - [ ] 03-06-PLAN.md — ScavengerScreen + RewardScreen components + admin Confirm Found button
@@ -93,5 +93,5 @@ Plans:
 |-------|----------------|--------|-----------|
 | 1. Foundation | 4/4 | Complete   | 2026-04-08 |
 | 2. Admin & Game Structure | 3/4 | In Progress|  |
-| 3. Groom Experience | 2/7 | In Progress|  |
+| 3. Groom Experience | 3/7 | In Progress|  |
 | 4. Group Economy & Multiplayer | 0/? | Not started | - |
