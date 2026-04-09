@@ -13,7 +13,10 @@ type IncomingMessage =
   | { type: "REJOIN"; playerId: string; sessionCode: string }
   | { type: "PONG" }
   | { type: "SAVE_SETUP"; chapters: Chapter[]; powerUpCatalog: PowerUp[] }
-  | { type: "UNLOCK_CHAPTER" };
+  | { type: "UNLOCK_CHAPTER" }
+  | { type: "MINIGAME_COMPLETE"; result: "win" | "loss" }
+  | { type: "SCAVENGER_DONE" }
+  | { type: "HINT_REQUEST" };
 
 export function handleOpen(ws: ServerWebSocket<WSData>, server: Server): void {
   // Subscribe this connection to the game broadcast channel
@@ -173,11 +176,13 @@ export function handleMessage(
       const updatedChapters = s.chapters.map((ch, i) => {
         if (i !== nextIndex) return ch;
         if (ch.minigameType !== "trivia" || ch.triviaPool.length === 0) {
-          return { ...ch, servedQuestionIndex: null };
+          return { ...ch, servedQuestionIndex: null, minigameDone: false, scavengerDone: false };
         }
         return {
           ...ch,
           servedQuestionIndex: Math.floor(Math.random() * ch.triviaPool.length),
+          minigameDone: false,
+          scavengerDone: false,
         };
       });
 
@@ -190,6 +195,55 @@ export function handleMessage(
       };
     });
 
+    broadcastState(server);
+    return;
+  }
+
+  if (msg.type === "MINIGAME_COMPLETE") {
+    const state = getState();
+    if (!state || state.activeChapterIndex === null) return;
+    // Idempotency guard (Pitfall 7): do not double-apply score if already done
+    if (state.chapters[state.activeChapterIndex]?.minigameDone) return;
+    const groomId = state.groomPlayerId;
+    const delta = msg.result === "win" ? 50 : -20;
+    setState((s) => {
+      const updatedChapters = s.chapters.map((ch, i) =>
+        i === s.activeChapterIndex ? { ...ch, minigameDone: true } : ch
+      );
+      return {
+        ...s,
+        chapters: updatedChapters,
+        scores: groomId
+          ? { ...s.scores, [groomId]: (s.scores[groomId] ?? 0) + delta }
+          : s.scores,
+      };
+    });
+    broadcastState(server);
+    return;
+  }
+
+  if (msg.type === "SCAVENGER_DONE") {
+    const state = getState();
+    if (!state || state.activeChapterIndex === null) return;
+    setState((s) => {
+      const updatedChapters = s.chapters.map((ch, i) =>
+        i === s.activeChapterIndex ? { ...ch, scavengerDone: true } : ch
+      );
+      return { ...s, chapters: updatedChapters };
+    });
+    broadcastState(server);
+    return;
+  }
+
+  if (msg.type === "HINT_REQUEST") {
+    const state = getState();
+    if (!state || state.activeChapterIndex === null) return;
+    const groomId = state.groomPlayerId;
+    if (!groomId) return;
+    setState((s) => ({
+      ...s,
+      scores: { ...s.scores, [groomId]: (s.scores[groomId] ?? 0) - 10 },
+    }));
     broadcastState(server);
     return;
   }
