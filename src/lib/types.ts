@@ -30,7 +30,7 @@ export type PowerUp = {
   name: string;
   description: string;
   tokenCost: number;
-  effectType: "timer_add" | "scramble_options" | "distraction" | string;
+  effectType: "timer_add" | "timer_reduce" | "scramble_options" | "distraction" | string;
 };
 
 export type GameState = {
@@ -43,6 +43,14 @@ export type GameState = {
   activeChapterIndex: number | null;  // null = lobby (no chapter active)
   scores: Record<string, number>;     // playerId → score (D-07); initialized to 0 on first UNLOCK_CHAPTER
   powerUpCatalog: PowerUp[];
+  // Phase 4 additions:
+  startingTokens: number;                          // admin-configured per-chapter starting balance; default 0
+  tokenBalances: Record<string, number>;            // playerId → current balance (D-03)
+  recentActions: Array<{                            // last 20 activation events (D-15)
+    playerName: string;
+    powerUpName: string;
+    timestamp: number;
+  }>;
 };
 
 // Server-to-client message union
@@ -50,15 +58,17 @@ export type ServerMessage =
   | { type: "STATE_SYNC"; state: GameState }
   | { type: "PING"; ts: number }
   | { type: "PLAYER_JOINED"; playerId: string }
-  | { type: "ERROR"; code: "WRONG_CODE" | "GROOM_TAKEN" | "INVALID_NAME" | "UNKNOWN"; message: string };
+  | { type: "ERROR"; code: "WRONG_CODE" | "GROOM_TAKEN" | "INVALID_NAME" | "UNKNOWN"; message: string }
+  | { type: "EFFECT_ACTIVATED"; activatedBy: string; powerUpName: string; effectType: string; delta?: number };
 
 // Client-to-server message union
 export type ClientMessage =
   | { type: "JOIN"; sessionCode: string; name: string; role: "groom" | "group" }
   | { type: "REJOIN"; playerId: string; sessionCode: string }
   | { type: "PONG" }
-  | { type: "SAVE_SETUP"; chapters: Chapter[]; powerUpCatalog: PowerUp[] }
+  | { type: "SAVE_SETUP"; chapters: Chapter[]; powerUpCatalog: PowerUp[]; startingTokens: number }
   | { type: "UNLOCK_CHAPTER" }
   | { type: "MINIGAME_COMPLETE"; result: "win" | "loss" }
   | { type: "SCAVENGER_DONE" }
-  | { type: "HINT_REQUEST" };
+  | { type: "HINT_REQUEST" }
+  | { type: "SPEND_TOKEN"; powerUpIndex: number };
