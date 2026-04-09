@@ -23,6 +23,9 @@
   );
   let isLobby = $derived($gameState?.phase === "lobby");
   let scores = $derived($gameState?.scores ?? {});
+  let activeChapter = $derived(
+    activeChapterIndex !== null ? ($gameState?.chapters[activeChapterIndex] ?? null) : null
+  );
 
   function unlockNextChapter() {
     sendMessage({ type: "UNLOCK_CHAPTER" });
@@ -128,6 +131,17 @@
         </button>
       {:else if chapterCount > 0 && activeChapterIndex !== null && activeChapterIndex >= chapterCount - 1}
         <p class="text-[14px] text-text-secondary">All chapters complete.</p>
+      {/if}
+
+      <!-- Admin override: Confirm Found — visible when minigame done but scavenger not yet confirmed -->
+      {#if activeChapter?.minigameDone && !activeChapter?.scavengerDone}
+        <button
+          onclick={() => sendMessage({ type: "SCAVENGER_DONE" })}
+          class="w-full min-h-[48px] bg-surface border border-border text-text-primary font-bold rounded-xl mt-3"
+          style="min-height: 48px;"
+        >
+          Confirm Found (admin override)
+        </button>
       {/if}
     </section>
 
