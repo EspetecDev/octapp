@@ -80,6 +80,8 @@ See: `.planning/PROJECT.md` (updated 2026-04-07)
 - [Phase 03-05]: MemoryMinigame uses immutable .map() card replacement — Svelte 5 requires object identity changes for array item reactivity (Pitfall 2 guard)
 - [Phase 03-groom-experience]: Hint button hidden via hasHint $derived guard — no hint configured means button never renders (D-23)
 - [Phase 03-groom-experience]: Admin Confirm Found placed after unlock button block in Zone 3 — conditional on minigameDone && !scavengerDone
+- [Phase 03-groom-experience]: Reward reveal $effect is separate from recap card $effect — avoids interference with existing initialSyncDone guard
+- [Phase 03-groom-experience]: Party page reward overlay does NOT auto-dismiss — waits for activeChapterIndex to advance (RWRD-01 compliance)
 
 ## Performance Metrics
 
@@ -98,6 +100,7 @@ See: `.planning/PROJECT.md` (updated 2026-04-07)
 | Phase 03-groom-experience P04 | 5 | 1 tasks | 1 files |
 | Phase 03-groom-experience P05 | 5 | 1 tasks | 1 files |
 | Phase 03-groom-experience P06 | 8 | 2 tasks | 3 files |
+| Phase 03-groom-experience P07 | 4 | 1 tasks | 1 files |
 
 ## Next Step
 
