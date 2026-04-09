@@ -305,7 +305,6 @@ export function handleMessage(
     }));
     return;
   }
-}
 
   if (msg.type === "EARN_TOKEN") {
     const state = getState();
@@ -336,6 +335,7 @@ export function handleMessage(
     broadcastState(server);
     return;
   }
+}
 
 export function handleClose(
   ws: ServerWebSocket<WSData>,
