@@ -11,6 +11,7 @@
   // Form state
   let chapters = $state<Chapter[]>([]);
   let powerUpCatalog = $state<PowerUp[]>([]);
+  let startingTokens = $state<number>(0);
   let saveFlash = $state(false);
   let saveFlashTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -23,6 +24,7 @@
     if (!restoredFromState && gs && gs.chapters.length > 0) {
       chapters = structuredClone(gs.chapters);
       powerUpCatalog = structuredClone(gs.powerUpCatalog);
+      startingTokens = gs.startingTokens ?? 0;
       restoredFromState = true;
     }
   });
@@ -165,7 +167,7 @@
 
   function saveSetup() {
     if (!isValid) return;
-    sendMessage({ type: "SAVE_SETUP", chapters, powerUpCatalog });
+    sendMessage({ type: "SAVE_SETUP", chapters, powerUpCatalog, startingTokens });
     saveFlash = true;
     if (saveFlashTimer) clearTimeout(saveFlashTimer);
     saveFlashTimer = setTimeout(() => {
@@ -365,6 +367,22 @@
     <!-- Power-ups & Sabotages section -->
     <section class="mb-8">
       <h2 class="text-[24px] font-bold text-text-primary mb-4">Power-ups & Sabotages</h2>
+
+      <div class="flex items-center gap-3 mb-4">
+        <label
+          for="starting-tokens"
+          class="text-[14px] text-text-secondary"
+        >Starting tokens per chapter</label>
+        <input
+          id="starting-tokens"
+          type="number"
+          min="0"
+          placeholder="e.g. 10"
+          class="w-20 bg-bg border border-border rounded-lg px-2 py-2 text-base text-text-primary text-center min-h-[44px]"
+          value={startingTokens}
+          oninput={(e) => { startingTokens = Number((e.target as HTMLInputElement).value) || 0; }}
+        />
+      </div>
 
       {#each powerUpCatalog as powerUp, i}
         <div class="bg-surface border border-border rounded-xl p-4 mb-3 flex flex-col gap-2">
