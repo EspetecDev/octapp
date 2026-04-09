@@ -29,7 +29,7 @@ export type PowerUp = {
   name: string;
   description: string;
   tokenCost: number;
-  effectType: "timer_add" | "scramble_options" | "distraction" | string;
+  effectType: "timer_add" | "timer_reduce" | "scramble_options" | "distraction" | string;
 };
 
 export type GameState = {
@@ -42,6 +42,10 @@ export type GameState = {
   activeChapterIndex: number | null;
   scores: Record<string, number>;
   powerUpCatalog: PowerUp[];
+  // Phase 4 additions:
+  startingTokens: number;
+  tokenBalances: Record<string, number>;
+  recentActions: Array<{ playerName: string; powerUpName: string; timestamp: number }>;
 };
 
 // In-memory store: one active session at a time (Phase 1 scope)
@@ -58,6 +62,9 @@ export function initState(sessionCode: string): GameState {
     activeChapterIndex: null,
     scores: {},
     powerUpCatalog: [],
+    startingTokens: 0,
+    tokenBalances: {},
+    recentActions: [],
   };
   return activeState;
 }
