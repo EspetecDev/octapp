@@ -20,19 +20,19 @@ The groom has a memorable, personalized gauntlet to run through his own bachelor
 - [x] Admin live-night controls: chapter progression via Unlock Chapter, real-time scores view — Validated in Phase 02: Admin & Game Structure
 - [x] Chapter transition: recap card overlay on groom and party pages on chapter unlock — Validated in Phase 02: Admin & Game Structure
 - [x] Game type system: Chapter, TriviaQuestion, PowerUp types + SAVE_SETUP/UNLOCK_CHAPTER handlers — Validated in Phase 02: Admin & Game Structure
+- [x] Trivia minigame — question + 4 options, 15s radial countdown, client-side answer check, win/loss overlay + haptic — Validated in Phase 03: Groom Experience
+- [x] Phone sensor minigame — iOS permission gate, DeviceMotion tilt meter (≥80% win), 30s countdown — Validated in Phase 03: Groom Experience
+- [x] Memory/matching minigame — 4×3 grid, CSS flip, immutable pair matching, 30s countdown — Validated in Phase 03: Groom Experience
+- [x] Scavenger hunt mechanic — clue display, optional hint (−10pts), groom "I Found It!" + admin override — Validated in Phase 03: Groom Experience
+- [x] Reward reveal — full-screen unlock on groom + party pages; past rewards accordion on groom — Validated in Phase 03: Groom Experience
+- [x] Groom view: screen router (minigame → scavenger → reward) driven by Chapter state flags — Validated in Phase 03: Groom Experience
 
 ### Active
 
 - [ ] Admin panel to manage the night: unlock phases, configure content before the event
-- [ ] Groom view: progress through locked phases, completing minigames to advance
-- [ ] Group view: join the game on their phones, earn points, spend them on power-ups and sabotages
-- [ ] Trivia minigame — questions about the groom submitted by friends
-- [ ] Phone sensor minigame — tilt, shake, or tap-based challenge
-- [ ] Memory/puzzle minigame — match cards or solve a puzzle
-- [ ] Scavenger hunt mechanic — app gives riddles/directions to find real-world items
+- [ ] Group view: join the game on their phones, earn tokens, spend them on power-ups and sabotages
 - [ ] Real-time multiplayer sync — group sees groom's progress; power-ups/sabotages take effect live
 - [ ] Phase system — admin unlocks phases throughout the night (e.g., dinner → bar → club)
-- [ ] Reward reveal — completing a phase unlocks something (dare, item clue, embarrassing content, etc.)
 
 ### Out of Scope
 
@@ -83,4 +83,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-08 — Phase 02 Admin & Game Structure complete*
+*Last updated: 2026-04-09 — Phase 03 Groom Experience complete*
