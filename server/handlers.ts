@@ -12,11 +12,12 @@ type IncomingMessage =
   | { type: "JOIN"; sessionCode: string; name: string; role: "groom" | "group" }
   | { type: "REJOIN"; playerId: string; sessionCode: string }
   | { type: "PONG" }
-  | { type: "SAVE_SETUP"; chapters: Chapter[]; powerUpCatalog: PowerUp[] }
+  | { type: "SAVE_SETUP"; chapters: Chapter[]; powerUpCatalog: PowerUp[]; startingTokens: number }
   | { type: "UNLOCK_CHAPTER" }
   | { type: "MINIGAME_COMPLETE"; result: "win" | "loss" }
   | { type: "SCAVENGER_DONE" }
-  | { type: "HINT_REQUEST" };
+  | { type: "HINT_REQUEST" }
+  | { type: "SPEND_TOKEN"; powerUpIndex: number };
 
 export function handleOpen(ws: ServerWebSocket<WSData>, server: Server): void {
   // Subscribe this connection to the game broadcast channel
@@ -142,6 +143,7 @@ export function handleMessage(
       ...s,
       chapters: msg.chapters,
       powerUpCatalog: msg.powerUpCatalog,
+      startingTokens: msg.startingTokens ?? 0,
     }));
     broadcastState(server);
     return;
@@ -186,11 +188,20 @@ export function handleMessage(
         };
       });
 
+      // Initialize tokenBalances for all current group players (D-03)
+      const tokenBalances: Record<string, number> = {};
+      const startingTokens = s.startingTokens ?? 0;
+      s.players
+        .filter((p) => p.role === "group")
+        .forEach((p) => { tokenBalances[p.id] = startingTokens; });
+
       return {
         ...s,
         phase: "active",
         activeChapterIndex: nextIndex,
         scores,
+        tokenBalances,           // initialize per-chapter token balances
+        recentActions: [],       // clear log on new chapter
         chapters: updatedChapters,
       };
     });
@@ -245,6 +256,52 @@ export function handleMessage(
       scores: { ...s.scores, [groomId]: (s.scores[groomId] ?? 0) - 10 },
     }));
     broadcastState(server);
+    return;
+  }
+
+  if (msg.type === "SPEND_TOKEN") {
+    const state = getState();
+    if (!state || state.activeChapterIndex === null) return;
+
+    const spenderId = ws.data.playerId;
+    if (!spenderId) return;
+
+    const powerUp = state.powerUpCatalog[msg.powerUpIndex];
+    if (!powerUp) return; // invalid index — silently drop
+
+    const balance = state.tokenBalances?.[spenderId] ?? 0;
+    if (balance < powerUp.tokenCost) return; // insufficient balance — silently drop
+
+    // Pitfall 4: scramble_options only valid during trivia
+    const activeChapter = state.chapters[state.activeChapterIndex];
+    if (powerUp.effectType === "scramble_options" && activeChapter?.minigameType !== "trivia") return;
+
+    const spenderPlayer = state.players.find((p) => p.id === spenderId);
+    const playerName = spenderPlayer?.name ?? "Unknown";
+
+    // Compute delta for timer effects (D-10)
+    let delta: number | undefined;
+    if (powerUp.effectType === "timer_add") delta = 5;
+    else if (powerUp.effectType === "timer_reduce") delta = -5;
+
+    setState((s) => {
+      const newBalances = { ...s.tokenBalances, [spenderId]: (s.tokenBalances?.[spenderId] ?? 0) - powerUp.tokenCost };
+      const newAction = { playerName, powerUpName: powerUp.name, timestamp: Date.now() };
+      const newActions = [newAction, ...(s.recentActions ?? [])].slice(0, 20);
+      return { ...s, tokenBalances: newBalances, recentActions: newActions };
+    });
+
+    // Broadcast state update (balances + feed)
+    broadcastState(server);
+
+    // Broadcast EFFECT_ACTIVATED as a separate event (never stored in GameState — Pitfall 1)
+    server.publish("game", JSON.stringify({
+      type: "EFFECT_ACTIVATED",
+      activatedBy: spenderId,
+      powerUpName: powerUp.name,
+      effectType: powerUp.effectType,
+      ...(delta !== undefined ? { delta } : {}),
+    }));
     return;
   }
 }
