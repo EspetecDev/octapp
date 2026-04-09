@@ -22,6 +22,8 @@ export type Chapter = {
   scavengerHint?: string;
   reward: string;
   servedQuestionIndex: number | null; // per-chapter, reset on each chapter activation (Pitfall 5)
+  minigameDone: boolean;      // Phase 3: tracks minigame completion per chapter
+  scavengerDone: boolean;     // Phase 3: tracks scavenger completion per chapter
 };
 
 export type PowerUp = {
@@ -56,4 +58,7 @@ export type ClientMessage =
   | { type: "REJOIN"; playerId: string; sessionCode: string }
   | { type: "PONG" }
   | { type: "SAVE_SETUP"; chapters: Chapter[]; powerUpCatalog: PowerUp[] }
-  | { type: "UNLOCK_CHAPTER" };
+  | { type: "UNLOCK_CHAPTER" }
+  | { type: "MINIGAME_COMPLETE"; result: "win" | "loss" }
+  | { type: "SCAVENGER_DONE" }
+  | { type: "HINT_REQUEST" };

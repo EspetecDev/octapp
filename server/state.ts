@@ -21,6 +21,8 @@ export type Chapter = {
   scavengerHint?: string;
   reward: string;
   servedQuestionIndex: number | null; // per-chapter; reset when chapter activates
+  minigameDone: boolean;      // Phase 3: tracks minigame completion per chapter
+  scavengerDone: boolean;     // Phase 3: tracks scavenger completion per chapter
 };
 
 export type PowerUp = {
