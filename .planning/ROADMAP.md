@@ -11,7 +11,7 @@ Four phases take the project from bare infrastructure to a fully playable group 
 - [x] **Phase 1: Foundation** - SvelteKit + Bun WebSocket server, session join-by-code, real-time sync, mobile UX base (completed 2026-04-08)
 - [ ] **Phase 2: Admin & Game Structure** - In-app content setup, phase state machine, lobby flow, admin dashboard
 - [ ] **Phase 3: Groom Experience** - All 3 minigames, scavenger hunt flow, reward reveals
-- [ ] **Phase 4: Group Economy & Multiplayer** - Token economy, power-up/sabotage catalog, real-time group interactions
+- [x] **Phase 4: Group Economy & Multiplayer** - Token economy, power-up/sabotage catalog, real-time group interactions (completed 2026-04-09)
 
 ## Phase Details
 
@@ -89,9 +89,9 @@ Plans:
 
 Plans:
 - [x] 04-01-PLAN.md — Extend type contracts (GameState + 3 new fields, SPEND_TOKEN, EFFECT_ACTIVATED, updated SAVE_SETUP) in types.ts and server/state.ts
-- [ ] 04-02-PLAN.md — Server SPEND_TOKEN handler + UNLOCK_CHAPTER token init + admin setup startingTokens field
+- [x] 04-02-PLAN.md — Server SPEND_TOKEN handler + UNLOCK_CHAPTER token init + admin setup startingTokens field
 - [x] 04-03-PLAN.md — Client effects: lastEffect store, RadialCountdown $bindable, minigame distraction overlays, groom page announcement overlay
-- [ ] 04-04-PLAN.md — Party page group economy UI (earn button, shop, social waiting screen, announcement overlay)
+- [x] 04-04-PLAN.md — Party page group economy UI (earn button, shop, social waiting screen, announcement overlay)
 
 ## Progress
 
@@ -100,4 +100,4 @@ Plans:
 | 1. Foundation | 4/4 | Complete   | 2026-04-08 |
 | 2. Admin & Game Structure | 3/4 | In Progress|  |
 | 3. Groom Experience | 3/7 | In Progress|  |
-| 4. Group Economy & Multiplayer | 2/4 | In Progress|  |
+| 4. Group Economy & Multiplayer | 4/4 | Complete   | 2026-04-09 |

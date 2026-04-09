@@ -4,12 +4,12 @@ milestone: v1.0
 milestone_name: milestone
 current_plan: 1
 status: Executing Phase 04
-last_updated: "2026-04-09T21:24:25.514Z"
+last_updated: "2026-04-09T21:28:36.869Z"
 progress:
   total_phases: 4
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 19
-  completed_plans: 17
+  completed_plans: 19
 ---
 
 # Project State
@@ -85,6 +85,8 @@ See: `.planning/PROJECT.md` (updated 2026-04-07)
 - [Phase 04-03]: EFFECT_ACTIVATED is NOT stored in gameState — lastEffect store only (transient event, not persistent state)
 - [Phase 04-03]: AnnouncementOverlay lives in groom page ONLY — minigames handle gameplay effects; no double-subscribe (Pitfall 5)
 - [Phase 04-03]: shuffleSeed increment pattern for forced $derived re-evaluation via void dep inside $derived IIFE
+- [Phase 04-group-economy-multiplayer]: earnedThisChallenge reset uses initialSyncDone guard to avoid false reset on first STATE_SYNC (Pitfall 3)
+- [Phase 04-group-economy-multiplayer]: handleSpend maps filteredShop index to catalog index via indexOf before sending SPEND_TOKEN (D-04/D-13)
 
 ## Performance Metrics
 
@@ -105,6 +107,7 @@ See: `.planning/PROJECT.md` (updated 2026-04-07)
 | Phase 03-groom-experience P06 | 8 | 2 tasks | 3 files |
 | Phase 03-groom-experience P07 | 4 | 1 tasks | 1 files |
 | Phase 04-group-economy-multiplayer P03 | 15 | 2 tasks | 6 files |
+| Phase 04-group-economy-multiplayer P04-04 | 2 | 1 tasks | 1 files |
 
 ## Next Step
 
