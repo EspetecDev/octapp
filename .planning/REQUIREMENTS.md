@@ -43,16 +43,16 @@
 
 ### Scavenger Hunt
 
-- [ ] **HUNT-01**: After completing the minigame, the groom receives a riddle/clue directing him to find something in the real world
-- [ ] **HUNT-02**: Groom can request a hint (costs points or tokens) if stuck
-- [ ] **HUNT-03**: Groom marks the scavenger step as complete once found; admin can also confirm it from the admin view
-- [ ] **HUNT-04**: Completing the scavenger step unlocks the phase reward
+- [x] **HUNT-01**: After completing the minigame, the groom receives a riddle/clue directing him to find something in the real world
+- [x] **HUNT-02**: Groom can request a hint (costs points or tokens) if stuck
+- [x] **HUNT-03**: Groom marks the scavenger step as complete once found; admin can also confirm it from the admin view
+- [x] **HUNT-04**: Completing the scavenger step unlocks the phase reward
 
 ### Rewards
 
-- [ ] **RWRD-01**: Completing a phase (minigame + scavenger) reveals the reward to all players with a full-screen unlock moment
-- [ ] **RWRD-02**: Reward is the admin-configured text for that phase (e.g., dare, item location, embarrassing content description)
-- [ ] **RWRD-03**: Past rewards are viewable in a groom-only history screen
+- [x] **RWRD-01**: Completing a phase (minigame + scavenger) reveals the reward to all players with a full-screen unlock moment
+- [x] **RWRD-02**: Reward is the admin-configured text for that phase (e.g., dare, item location, embarrassing content description)
+- [x] **RWRD-03**: Past rewards are viewable in a groom-only history screen
 
 ### Group Participation & Economy
 
