@@ -1,6 +1,6 @@
 <script lang="ts">
-  let { duration, onExpire }: { duration: number; onExpire: () => void } = $props();
-  let remaining = $state(duration);
+  let { duration, onExpire, remaining = $bindable(duration) }:
+    { duration: number; onExpire: () => void; remaining?: number } = $props();
   const RADIUS = 45;
   const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
