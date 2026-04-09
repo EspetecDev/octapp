@@ -59,8 +59,8 @@
 - [x] **GRPX-01**: Group members each have their own token balance, starting at a configured amount at the beginning of each phase
 - [x] **GRPX-02**: Group members earn tokens by completing group-side activities (e.g., answering a parallel trivia question, tapping a reaction during the groom's challenge)
 - [x] **GRPX-03**: During a groom minigame, group members can spend tokens on power-ups or sabotages from a context-filtered list
-- [ ] **GRPX-04**: Power-up example: add 5 seconds to the groom's timer
-- [ ] **GRPX-05**: Sabotage example: reduce the groom's timer, scramble his answer options, or add a distraction overlay
+- [x] **GRPX-04**: Power-up example: add 5 seconds to the groom's timer
+- [x] **GRPX-05**: Sabotage example: reduce the groom's timer, scramble his answer options, or add a distraction overlay
 - [x] **GRPX-06**: Activated sabotages and power-ups are announced to all players with a visible notification (never silent)
 - [x] **GRPX-07**: Group members can see each other's token balances and recent actions
 
