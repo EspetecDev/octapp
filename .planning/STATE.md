@@ -77,6 +77,7 @@ See: `.planning/PROJECT.md` (updated 2026-04-07)
 - [Phase 03-groom-experience]: Separate selectedOption and resultState states: selectedOption tracks tapped button; resultState controls overlay and 2s auto-dismiss
 - [Phase 03-groom-experience]: requestPermission called only from button onclick — iOS 13+ hard platform constraint
 - [Phase 03-groom-experience]: SensorMinigame normalization: (reading.x + 9.8) / 9.8 for tilt-right fill; win at normalized >= 0.8
+- [Phase 03-05]: MemoryMinigame uses immutable .map() card replacement — Svelte 5 requires object identity changes for array item reactivity (Pitfall 2 guard)
 
 ## Performance Metrics
 
@@ -93,6 +94,7 @@ See: `.planning/PROJECT.md` (updated 2026-04-07)
 | Phase 03-groom-experience P02 | 6 | 2 tasks | 7 files |
 | Phase 03-groom-experience P03 | 4 | 1 tasks | 1 files |
 | Phase 03-groom-experience P04 | 5 | 1 tasks | 1 files |
+| Phase 03-groom-experience P05 | 5 | 1 tasks | 1 files |
 
 ## Next Step
 
