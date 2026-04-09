@@ -85,7 +85,13 @@ Plans:
   3. A deployed sabotage (e.g., timer reduction, scrambled options, distraction overlay) takes effect on the groom's screen within 500ms and is announced to all players with a visible notification — never silent
   4. A deployed power-up (e.g., timer extension) is visible to the groom and all group members simultaneously
   5. Group members can see each other's current token balances and a feed of recent actions from the group view
-**Plans**: TBD
+**Plans**: 4 plans
+
+Plans:
+- [ ] 04-01-PLAN.md — Extend type contracts (GameState + 3 new fields, SPEND_TOKEN, EFFECT_ACTIVATED, updated SAVE_SETUP) in types.ts and server/state.ts
+- [ ] 04-02-PLAN.md — Server SPEND_TOKEN handler + UNLOCK_CHAPTER token init + admin setup startingTokens field
+- [ ] 04-03-PLAN.md — Client effects: lastEffect store, RadialCountdown $bindable, minigame distraction overlays, groom page announcement overlay
+- [ ] 04-04-PLAN.md — Party page group economy UI (earn button, shop, social waiting screen, announcement overlay)
 
 ## Progress
 
@@ -94,4 +100,4 @@ Plans:
 | 1. Foundation | 4/4 | Complete   | 2026-04-08 |
 | 2. Admin & Game Structure | 3/4 | In Progress|  |
 | 3. Groom Experience | 3/7 | In Progress|  |
-| 4. Group Economy & Multiplayer | 0/? | Not started | - |
+| 4. Group Economy & Multiplayer | 0/4 | Not started | - |
