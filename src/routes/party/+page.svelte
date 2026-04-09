@@ -232,7 +232,7 @@
         disabled={earnedThisChallenge >= EARN_CAP}
         aria-label="Tap to earn a token"
         aria-disabled={earnedThisChallenge >= EARN_CAP}
-        ontouchend|preventDefault={handleEarnTap}
+        ontouchend={handleEarnTap}
         onclick={handleEarnTap}
       >
         {earnedThisChallenge >= EARN_CAP ? "MAX EARNED" : "TAP TO EARN"}
