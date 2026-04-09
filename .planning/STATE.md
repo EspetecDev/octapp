@@ -4,7 +4,7 @@ milestone: v1.0
 milestone_name: milestone
 current_plan: 1
 status: Executing Phase 04
-last_updated: "2026-04-09T21:22:03.925Z"
+last_updated: "2026-04-09T21:24:25.514Z"
 progress:
   total_phases: 4
   completed_phases: 3
@@ -82,9 +82,9 @@ See: `.planning/PROJECT.md` (updated 2026-04-07)
 - [Phase 03-groom-experience]: Admin Confirm Found placed after unlock button block in Zone 3 — conditional on minigameDone && !scavengerDone
 - [Phase 03-groom-experience]: Reward reveal $effect is separate from recap card $effect — avoids interference with existing initialSyncDone guard
 - [Phase 03-groom-experience]: Party page reward overlay does NOT auto-dismiss — waits for activeChapterIndex to advance (RWRD-01 compliance)
-- [Phase 04-02]: EFFECT_ACTIVATED broadcast is a separate server.publish call after STATE_SYNC — never stored in GameState (Pitfall 1 guard)
-- [Phase 04-02]: SPEND_TOKEN silently drops on invalid powerUpIndex, insufficient balance, or scramble_options outside trivia chapter
-- [Phase 04-02]: tokenBalances re-initialized on every UNLOCK_CHAPTER to startingTokens for all current group players
+- [Phase 04-03]: EFFECT_ACTIVATED is NOT stored in gameState — lastEffect store only (transient event, not persistent state)
+- [Phase 04-03]: AnnouncementOverlay lives in groom page ONLY — minigames handle gameplay effects; no double-subscribe (Pitfall 5)
+- [Phase 04-03]: shuffleSeed increment pattern for forced $derived re-evaluation via void dep inside $derived IIFE
 
 ## Performance Metrics
 
@@ -104,7 +104,7 @@ See: `.planning/PROJECT.md` (updated 2026-04-07)
 | Phase 03-groom-experience P05 | 5 | 1 tasks | 1 files |
 | Phase 03-groom-experience P06 | 8 | 2 tasks | 3 files |
 | Phase 03-groom-experience P07 | 4 | 1 tasks | 1 files |
-| Phase 04-group-economy-multiplayer P02 | 8 | 2 tasks | 2 files |
+| Phase 04-group-economy-multiplayer P03 | 15 | 2 tasks | 6 files |
 
 ## Next Step
 

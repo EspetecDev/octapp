@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { sendMessage } from "$lib/socket.ts";
+  import { sendMessage, lastEffect } from "$lib/socket.ts";
+  import type { EffectActivatedPayload } from "$lib/socket.ts";
   import { normalizeSensorData, detectPlatform } from "$lib/sensors.ts";
   import RadialCountdown from "./RadialCountdown.svelte";
   import type { Chapter } from "$lib/types.ts";
@@ -12,6 +13,32 @@
   let meterFill = $state(0);   // 0–1
   let resultState = $state<"win" | "loss" | null>(null);
   let timerRunning = $state(false);
+
+  // Distraction overlay state (D-12)
+  let showDistraction = $state(false);
+  let distractionKey = $state(0);
+
+  // Effect handler — distraction only for sensor minigame (no timer delta, no scramble)
+  $effect(() => {
+    const effect = $lastEffect;
+    if (!effect) return;
+    if (effect.effectType === "distraction") {
+      distractionKey += 1;
+      showDistraction = true;
+      setTimeout(() => { showDistraction = false; }, 4000);
+    }
+  });
+
+  const BACHELOR_EMOJIS = ["🍻", "👑", "💀", "🥳", "💍", "🎶"];
+  function generateEmojiSpread() {
+    return Array.from({ length: 12 }, (_, i) => ({
+      id: i,
+      emoji: BACHELOR_EMOJIS[i % BACHELOR_EMOJIS.length],
+      x: Math.round(5 + Math.random() * 85),
+      delay: Math.round(Math.random() * 1200),
+      duration: Math.round(2800 + Math.random() * 1000),
+    }));
+  }
 
   onMount(() => {
     platform = detectPlatform();
@@ -150,6 +177,20 @@
       {/each}
     </div>
   {/if}
+
+  <!-- Distraction overlay — emoji storm (D-12) -->
+  {#key distractionKey}
+    {#if showDistraction}
+      <div class="emoji-storm" aria-hidden="true">
+        {#each generateEmojiSpread() as item (item.id)}
+          <span
+            class="emoji-float"
+            style="left: {item.x}%; animation-delay: {item.delay}ms; animation-duration: {item.duration}ms;"
+          >{item.emoji}</span>
+        {/each}
+      </div>
+    {/if}
+  {/key}
 </div>
 
 <style>
@@ -298,5 +339,24 @@
   @keyframes confettiFall {
     from { transform: translateY(0); opacity: 1; }
     to   { transform: translateY(-60vh); opacity: 0; }
+  }
+
+  /* Distraction overlay — emoji storm (D-12) */
+  .emoji-storm {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 60;
+    overflow: hidden;
+  }
+  .emoji-float {
+    position: absolute;
+    bottom: -40px;
+    font-size: 32px;
+    animation: floatUp ease-out forwards;
+  }
+  @keyframes floatUp {
+    from { transform: translateY(0); opacity: 0.9; }
+    to   { transform: translateY(-110vh); opacity: 0; }
   }
 </style>

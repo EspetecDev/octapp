@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { sendMessage } from "$lib/socket.ts";
+  import { sendMessage, lastEffect } from "$lib/socket.ts";
+  import type { EffectActivatedPayload } from "$lib/socket.ts";
   import RadialCountdown from "./RadialCountdown.svelte";
   import type { Chapter, TriviaQuestion } from "$lib/types.ts";
 
@@ -12,8 +13,12 @@
       : null
   );
 
-  // Shuffle all 4 options once when the question is set (correctAnswer + 3 wrongOptions)
+  // shuffleSeed forces $derived re-evaluation on scramble_options effect (Pitfall 7)
+  let shuffleSeed = $state(0);
+
+  // Shuffle all 4 options; reads shuffleSeed as reactive dependency for forced re-shuffle
   let shuffledOptions = $derived<string[]>((() => {
+    void shuffleSeed; // reactive dependency — forces re-evaluation when shuffleSeed increments
     if (!question) return [];
     const opts = [question.correctAnswer, ...question.wrongOptions];
     // Fisher-Yates shuffle
@@ -26,6 +31,53 @@
 
   let selectedOption = $state<string | null>(null);    // which option was tapped
   let resultState = $state<"win" | "loss" | null>(null);
+
+  // timerRemaining is bound to RadialCountdown so timer_add/timer_reduce effects can adjust it
+  let timerRemaining = $state<number>(15);
+
+  // Timer delta flash state (D-10)
+  let showTimerFlash = $state(false);
+  let timerFlashDelta = $state<number>(0);
+
+  // Distraction overlay state (D-12)
+  let showDistraction = $state(false);
+  let distractionKey = $state(0);
+
+  // Effect handler — responds to EFFECT_ACTIVATED for gameplay effects
+  // Pitfall 5: announcement overlay is handled on groom page ONLY; minigame handles gameplay effects only
+  $effect(() => {
+    const effect = $lastEffect;
+    if (!effect) return;
+
+    if (effect.effectType === "timer_add" || effect.effectType === "timer_reduce") {
+      const delta = effect.delta ?? (effect.effectType === "timer_add" ? 5 : -5);
+      timerRemaining = Math.max(0, timerRemaining + delta); // Pitfall 2: clamp to 0
+      timerFlashDelta = delta;
+      showTimerFlash = true;
+      setTimeout(() => { showTimerFlash = false; }, 1000);
+    }
+
+    if (effect.effectType === "scramble_options") {
+      shuffleSeed += 1; // Pitfall 7: force $derived re-evaluation
+    }
+
+    if (effect.effectType === "distraction") {
+      distractionKey += 1; // new key = destroy+remount emoji storm
+      showDistraction = true;
+      setTimeout(() => { showDistraction = false; }, 4000);
+    }
+  });
+
+  const BACHELOR_EMOJIS = ["🍻", "👑", "💀", "🥳", "💍", "🎶"];
+  function generateEmojiSpread() {
+    return Array.from({ length: 12 }, (_, i) => ({
+      id: i,
+      emoji: BACHELOR_EMOJIS[i % BACHELOR_EMOJIS.length],
+      x: Math.round(5 + Math.random() * 85),
+      delay: Math.round(Math.random() * 1200),
+      duration: Math.round(2800 + Math.random() * 1000),
+    }));
+  }
 
   function handleOptionTap(option: string) {
     if (selectedOption !== null || resultState !== null) return; // locked after selection
@@ -54,8 +106,29 @@
 </script>
 
 <div class="trivia-screen">
-  <!-- Radial countdown (D-13: 15 seconds) -->
-  <RadialCountdown duration={15} onExpire={handleTimerExpire} />
+  <!-- Radial countdown (D-13: 15 seconds) — bind:remaining allows timer_add/timer_reduce effects to adjust it -->
+  <RadialCountdown duration={15} bind:remaining={timerRemaining} onExpire={handleTimerExpire} />
+
+  <!-- Timer delta flash (D-10, UI-SPEC TimerDeltaFlash) -->
+  {#if showTimerFlash}
+    <div class="timer-flash" style="color: {timerFlashDelta > 0 ? '#f59e0b' : '#ef4444'};">
+      {timerFlashDelta > 0 ? '+' : ''}{timerFlashDelta}s
+    </div>
+  {/if}
+
+  <!-- Distraction overlay — emoji storm (D-12, UI-SPEC DistractionOverlay) -->
+  {#key distractionKey}
+    {#if showDistraction}
+      <div class="emoji-storm" aria-hidden="true">
+        {#each generateEmojiSpread() as item (item.id)}
+          <span
+            class="emoji-float"
+            style="left: {item.x}%; animation-delay: {item.delay}ms; animation-duration: {item.duration}ms;"
+          >{item.emoji}</span>
+        {/each}
+      </div>
+    {/if}
+  {/key}
 
   <!-- Question text -->
   {#if question}
@@ -215,5 +288,42 @@
   @keyframes confettiFall {
     from { transform: translateY(0); opacity: 1; }
     to   { transform: translateY(-60vh); opacity: 0; }
+  }
+
+  /* Timer delta flash (D-10) */
+  .timer-flash {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 24px;
+    font-weight: 700;
+    animation: flashFade 1000ms ease forwards;
+    pointer-events: none;
+    z-index: 10;
+  }
+  @keyframes flashFade {
+    0%   { opacity: 1; }
+    20%  { opacity: 1; }
+    100% { opacity: 0; }
+  }
+
+  /* Distraction overlay — emoji storm (D-12) */
+  .emoji-storm {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 60;
+    overflow: hidden;
+  }
+  .emoji-float {
+    position: absolute;
+    bottom: -40px;
+    font-size: 32px;
+    animation: floatUp ease-out forwards;
+  }
+  @keyframes floatUp {
+    from { transform: translateY(0); opacity: 0.9; }
+    to   { transform: translateY(-110vh); opacity: 0; }
   }
 </style>

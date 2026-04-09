@@ -11,6 +11,16 @@ export const connectionStatus = writable<"connected" | "reconnecting" | "disconn
 // Last error message from server (shown in UI forms)
 export const lastError = writable<{ code: string; message: string } | null>(null);
 
+// Transient effect store — updated on EFFECT_ACTIVATED; NOT stored in gameState (D-14, Pitfall 1)
+// Components subscribe to lastEffect for visual/gameplay effects; it is NOT part of persistent state
+export type EffectActivatedPayload = {
+  activatedBy: string;
+  powerUpName: string;
+  effectType: string;
+  delta?: number;
+};
+export const lastEffect = writable<EffectActivatedPayload | null>(null);
+
 // localStorage keys
 const PLAYER_ID_KEY = "octapp:playerId";
 const SESSION_CODE_KEY = "octapp:sessionCode";
@@ -95,6 +105,9 @@ class ReconnectingWebSocket {
         if (sessionCode) {
           storePlayerSession(msg.playerId, sessionCode);
         }
+      } else if (msg.type === "EFFECT_ACTIVATED") {
+        // Transient effect — update lastEffect store ONLY; do NOT set gameState (Pitfall 1: EFFECT_ACTIVATED is not persistent state)
+        lastEffect.set(msg as unknown as EffectActivatedPayload);
       } else if (msg.type === "ERROR") {
         lastError.set({ code: msg.code, message: msg.message });
       }

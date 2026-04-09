@@ -89,8 +89,8 @@ Plans:
 
 Plans:
 - [x] 04-01-PLAN.md — Extend type contracts (GameState + 3 new fields, SPEND_TOKEN, EFFECT_ACTIVATED, updated SAVE_SETUP) in types.ts and server/state.ts
-- [x] 04-02-PLAN.md — Server SPEND_TOKEN handler + UNLOCK_CHAPTER token init + admin setup startingTokens field
-- [ ] 04-03-PLAN.md — Client effects: lastEffect store, RadialCountdown $bindable, minigame distraction overlays, groom page announcement overlay
+- [ ] 04-02-PLAN.md — Server SPEND_TOKEN handler + UNLOCK_CHAPTER token init + admin setup startingTokens field
+- [x] 04-03-PLAN.md — Client effects: lastEffect store, RadialCountdown $bindable, minigame distraction overlays, groom page announcement overlay
 - [ ] 04-04-PLAN.md — Party page group economy UI (earn button, shop, social waiting screen, announcement overlay)
 
 ## Progress
