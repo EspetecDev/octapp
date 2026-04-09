@@ -42,6 +42,36 @@
       dismissTimer = setTimeout(() => { showRecap = false; }, 3000);
     }
   });
+
+  // Reward reveal state (RWRD-01, D-24)
+  let showRewardReveal = $state(false);
+  let revealedChapterIndex = $state<number | null>(null);
+
+  $effect(() => {
+    const idx = $gameState?.activeChapterIndex ?? null;
+    const chapter = idx !== null ? ($gameState?.chapters[idx] ?? null) : null;
+
+    if (!initialSyncDone) {
+      // Baseline on first STATE_SYNC (Pitfall 4 guard)
+      revealedChapterIndex = idx;
+      // If player joins mid-reward, show overlay immediately
+      if (chapter?.scavengerDone && idx !== null) {
+        showRewardReveal = true;
+      }
+      return;
+    }
+
+    // New reward: scavengerDone flipped true on current chapter
+    if (chapter?.scavengerDone && idx !== revealedChapterIndex) {
+      revealedChapterIndex = idx;
+      showRewardReveal = true;
+    }
+
+    // Dismiss when chapter advances (activeChapterIndex changes beyond revealedChapterIndex)
+    if (idx !== null && revealedChapterIndex !== null && idx !== revealedChapterIndex && showRewardReveal) {
+      showRewardReveal = false;
+    }
+  });
 </script>
 
 <main
@@ -104,6 +134,25 @@
       </div>
     </div>
   {/if}
+
+  <!-- Reward Reveal Overlay (RWRD-01) — persists until next chapter unlock -->
+  {#if $gameState && revealedChapterIndex !== null}
+    {@const revealChapter = $gameState.chapters[revealedChapterIndex]}
+    <div
+      class="reward-overlay"
+      class:visible={showRewardReveal}
+      role="status"
+      aria-live="polite"
+    >
+      <div class="reward-content">
+        <p class="reward-label">REWARD UNLOCKED</p>
+        <p class="reward-chapter">{revealChapter?.name ?? ""}</p>
+        <div class="reward-text-container">
+          <p class="reward-text">{revealChapter?.reward ?? ""}</p>
+        </div>
+      </div>
+    </div>
+  {/if}
 </main>
 
 <style>
@@ -162,6 +211,64 @@
   .recap-progress {
     font-size: 14px; /* --font-size-label */
     color: #9ca3af; /* --color-text-secondary */
+    margin: 0;
+  }
+
+  /* Reward reveal overlay — same base as recap, but persists (UI-SPEC RewardReveal section) */
+  .reward-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    background: rgba(15, 15, 15, 0.95);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 200ms ease;
+  }
+
+  .reward-overlay.visible {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .reward-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 24px; /* gap-lg */
+    padding: 64px 32px; /* py-3xl px-xl */
+    text-align: center;
+  }
+
+  .reward-label {
+    font-size: 14px;
+    color: #9ca3af;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    margin: 0;
+  }
+
+  .reward-chapter {
+    font-size: 24px;
+    font-weight: 700;
+    color: #f9fafb;
+    margin: 0;
+  }
+
+  .reward-text-container {
+    box-shadow: 0 0 32px rgba(245, 158, 11, 0.25); /* glow per UI-SPEC */
+    border-radius: 12px;
+    padding: 8px;
+  }
+
+  .reward-text {
+    font-size: 40px;
+    font-weight: 700;
+    color: #f59e0b; /* --color-accent-groom */
+    text-align: center;
+    line-height: 1.2;
     margin: 0;
   }
 </style>
