@@ -63,8 +63,17 @@ Plans:
   3. Memory/matching minigame presents a card grid with a countdown timer; pairs animate on match and the game resolves within the time window
   4. After completing a minigame, the groom sees a scavenger clue and can optionally request a hint; marking it found (or admin confirming) unlocks the phase reward
   5. Reward reveal plays as a full-screen unlock moment visible to all players, and past rewards are accessible in a groom-only history screen
-**Plans**: TBD
+**Plans**: 7 plans
 **UI hint**: yes
+
+Plans:
+- [ ] 03-01-PLAN.md — Type contracts + server handlers (Chapter fields, 3 new ClientMessages, MINIGAME_COMPLETE/SCAVENGER_DONE/HINT_REQUEST)
+- [ ] 03-02-PLAN.md — RadialCountdown shared component + groom page screen router skeleton + stub components
+- [ ] 03-03-PLAN.md — TriviaMinigame component (question + 4 options + 15s countdown + win/loss overlay)
+- [ ] 03-04-PLAN.md — SensorMinigame component (iOS permission gate + tilt meter + 30s countdown + win/loss overlay)
+- [ ] 03-05-PLAN.md — MemoryMinigame component (4×3 card grid + CSS flip + pair matching + 30s countdown)
+- [ ] 03-06-PLAN.md — ScavengerScreen + RewardScreen components + admin Confirm Found button
+- [ ] 03-07-PLAN.md — Party page reward reveal overlay (full-screen, persists until chapter advances)
 
 ### Phase 4: Group Economy & Multiplayer
 **Goal**: Group members have a live token economy that lets them actively help or sabotage the groom during his challenges, with all actions announced to every player.
@@ -84,5 +93,5 @@ Plans:
 |-------|----------------|--------|-----------|
 | 1. Foundation | 4/4 | Complete   | 2026-04-08 |
 | 2. Admin & Game Structure | 3/4 | In Progress|  |
-| 3. Groom Experience | 0/? | Not started | - |
+| 3. Groom Experience | 0/7 | Not started | - |
 | 4. Group Economy & Multiplayer | 0/? | Not started | - |
