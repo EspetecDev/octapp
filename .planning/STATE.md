@@ -4,12 +4,12 @@ milestone: v1.0
 milestone_name: milestone
 current_plan: 1
 status: Executing Phase 03
-last_updated: "2026-04-09T06:51:44.589Z"
+last_updated: "2026-04-09T06:55:51.064Z"
 progress:
   total_phases: 4
   completed_phases: 2
   total_plans: 15
-  completed_plans: 11
+  completed_plans: 14
 ---
 
 # Project State
@@ -78,6 +78,8 @@ See: `.planning/PROJECT.md` (updated 2026-04-07)
 - [Phase 03-groom-experience]: requestPermission called only from button onclick — iOS 13+ hard platform constraint
 - [Phase 03-groom-experience]: SensorMinigame normalization: (reading.x + 9.8) / 9.8 for tilt-right fill; win at normalized >= 0.8
 - [Phase 03-05]: MemoryMinigame uses immutable .map() card replacement — Svelte 5 requires object identity changes for array item reactivity (Pitfall 2 guard)
+- [Phase 03-groom-experience]: Reward reveal $effect is separate from recap card $effect — avoids interference with existing initialSyncDone guard
+- [Phase 03-groom-experience]: Party page reward overlay does NOT auto-dismiss — waits for activeChapterIndex to advance (RWRD-01 compliance)
 
 ## Performance Metrics
 
@@ -95,6 +97,7 @@ See: `.planning/PROJECT.md` (updated 2026-04-07)
 | Phase 03-groom-experience P03 | 4 | 1 tasks | 1 files |
 | Phase 03-groom-experience P04 | 5 | 1 tasks | 1 files |
 | Phase 03-groom-experience P05 | 5 | 1 tasks | 1 files |
+| Phase 03-groom-experience P07 | 4 | 1 tasks | 1 files |
 
 ## Next Step
 

@@ -50,7 +50,7 @@
 
 ### Rewards
 
-- [ ] **RWRD-01**: Completing a phase (minigame + scavenger) reveals the reward to all players with a full-screen unlock moment
+- [x] **RWRD-01**: Completing a phase (minigame + scavenger) reveals the reward to all players with a full-screen unlock moment
 - [ ] **RWRD-02**: Reward is the admin-configured text for that phase (e.g., dare, item location, embarrassing content description)
 - [ ] **RWRD-03**: Past rewards are viewable in a groom-only history screen
 
