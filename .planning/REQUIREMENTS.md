@@ -142,6 +142,24 @@
 - Mapped to phases: 44
 - Unmapped: 0 ✓
 
+## v1.1 Requirements — Deployment & Testing
+
+### Deployment
+
+- [ ] **DEPLOY-01**: App is deployed to Railway and accessible via a public URL
+- [ ] **DEPLOY-02**: ADMIN_TOKEN env var is set; admin routes return 401 without it in production
+
+### Validation
+
+- [ ] **VALID-01**: Admin, Groom, and Party member join simultaneously from 3 real devices; all receive state updates in real-time
+- [ ] **VALID-02**: Admin unlocks a chapter and all 3 devices reflect the change within 2 seconds
+- [ ] **VALID-03**: Groom completes sensor minigame end-to-end on a real iOS device (DeviceMotion permission gate works)
+
+### Bug Fixes
+
+- [ ] **FIX-01**: Android back button does not navigate away from the game during an active session
+- [ ] **FIX-02**: Server uncaughtException handler logs errors and keeps the process alive (no session wipe on unhandled error)
+
 ---
 *Requirements defined: 2026-04-07*
-*Last updated: 2026-04-07 after initial definition*
+*Last updated: 2026-04-10 — v1.1 Deployment & Testing requirements added*
