@@ -1,8 +1,11 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { goto } from "$app/navigation";
-  import { gameState, lastError, sendMessage, storePlayerSession, getStoredPlayerId } from "$lib/socket.ts";
+  import { gameState, lastError, sendMessage, storePlayerSession, getStoredPlayerId, getStoredSessionCode, clearPlayerSession } from "$lib/socket.ts";
   import type { GameState } from "$lib/types.ts";
+
+  // --- Auto-redirect: if stored session exists, redirect back instead of showing the form ---
+  let autoRedirecting = $state(getStoredPlayerId() !== null && getStoredSessionCode() !== null);
 
   // --- Form state ---
   let code = $state("");          // 6-char join code
@@ -50,6 +53,37 @@
   let joinedPlayerId: string | null = null;
 
   onMount(() => {
+    // Auto-redirect if a stored session exists (handles page refresh)
+    const storedPlayerId = getStoredPlayerId();
+    const storedSessionCode = getStoredSessionCode();
+
+    if (storedPlayerId && storedSessionCode) {
+      // Give up and show form if server doesn't respond in 4 seconds
+      const giveUpTimer = setTimeout(() => {
+        clearPlayerSession();
+        autoRedirecting = false;
+        (document.querySelector("#code-input") as HTMLInputElement | null)?.focus();
+      }, 4_000);
+
+      const unsubRedirect = gameState.subscribe((state) => {
+        if (!state) return; // waiting for STATE_SYNC
+        clearTimeout(giveUpTimer);
+        unsubRedirect();
+        const player = state.players.find((p) => p.id === storedPlayerId);
+        if (player && state.sessionCode === storedSessionCode) {
+          goto(player.role === "groom" ? "/groom" : "/party");
+        } else {
+          // Session changed or player was removed (e.g. Reset Game) — show form fresh
+          clearPlayerSession();
+          autoRedirecting = false;
+          setTimeout(() => (document.querySelector("#code-input") as HTMLInputElement | null)?.focus(), 0);
+        }
+      });
+      return () => { clearTimeout(giveUpTimer); unsubRedirect(); };
+    }
+
+    // No stored session — show form normally
+    autoRedirecting = false;
     // Focus code input on load (UI-SPEC "Primary anchor")
     (document.querySelector("#code-input") as HTMLInputElement | null)?.focus();
 
@@ -143,6 +177,13 @@
 </script>
 
 <main class="flex min-h-[100dvh] flex-col items-center justify-center bg-bg px-5 py-8">
+  {#if autoRedirecting}
+    <!-- Reconnecting spinner — shown while we check if stored session is still valid -->
+    <div class="flex flex-col items-center gap-4">
+      <div class="w-8 h-8 rounded-full border-2 border-text-primary border-t-transparent animate-spin"></div>
+      <p class="text-base text-text-secondary">Reconnecting...</p>
+    </div>
+  {:else}
   <div class="w-full flex flex-col gap-6">
 
     <!-- App title -->
@@ -271,6 +312,7 @@
     </form>
 
   </div>
+  {/if}
 </main>
 
 <style>
