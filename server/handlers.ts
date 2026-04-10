@@ -18,7 +18,9 @@ type IncomingMessage =
   | { type: "SCAVENGER_DONE" }
   | { type: "HINT_REQUEST" }
   | { type: "SPEND_TOKEN"; powerUpIndex: number }
-  | { type: "EARN_TOKEN" };
+  | { type: "EARN_TOKEN" }
+  | { type: "RESET_GAME" }
+  | { type: "REPEAT_CHAPTER" };
 
 export function handleOpen(ws: ServerWebSocket<WSData>, server: Server): void {
   // Subscribe this connection to the game broadcast channel
@@ -332,6 +334,52 @@ export function handleMessage(
       },
     }));
 
+    broadcastState(server);
+    return;
+  }
+
+  if (msg.type === "RESET_GAME") {
+    const state = getState();
+    if (!state) return;
+    setState((s) => ({
+      ...s,
+      phase: "lobby",
+      activeChapterIndex: null,
+      groomPlayerId: null,
+      players: [],
+      scores: {},
+      tokenBalances: {},
+      recentActions: [],
+      chapters: s.chapters.map((ch) => ({
+        ...ch,
+        minigameDone: false,
+        scavengerDone: false,
+        servedQuestionIndex: null,
+      })),
+    }));
+    broadcastState(server);
+    return;
+  }
+
+  if (msg.type === "REPEAT_CHAPTER") {
+    const state = getState();
+    if (!state || state.activeChapterIndex === null) return;
+    const idx = state.activeChapterIndex;
+    setState((s) => {
+      const updatedChapters = s.chapters.map((ch, i) => {
+        if (i !== idx) return ch;
+        if (ch.minigameType !== "trivia" || ch.triviaPool.length === 0) {
+          return { ...ch, minigameDone: false, scavengerDone: false, servedQuestionIndex: null };
+        }
+        return {
+          ...ch,
+          minigameDone: false,
+          scavengerDone: false,
+          servedQuestionIndex: Math.floor(Math.random() * ch.triviaPool.length),
+        };
+      });
+      return { ...s, chapters: updatedChapters };
+    });
     broadcastState(server);
     return;
   }

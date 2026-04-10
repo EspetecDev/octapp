@@ -72,4 +72,6 @@ export type ClientMessage =
   | { type: "SCAVENGER_DONE" }
   | { type: "HINT_REQUEST" }
   | { type: "SPEND_TOKEN"; powerUpIndex: number }
-  | { type: "EARN_TOKEN" };
+  | { type: "EARN_TOKEN" }
+  | { type: "RESET_GAME" }
+  | { type: "REPEAT_CHAPTER" };

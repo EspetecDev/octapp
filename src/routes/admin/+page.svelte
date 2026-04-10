@@ -31,6 +31,15 @@
     sendMessage({ type: "UNLOCK_CHAPTER" });
   }
 
+  function resetGame() {
+    if (!confirm("Reset the game? All players will be disconnected and scores cleared. Chapter setup is kept.")) return;
+    sendMessage({ type: "RESET_GAME" });
+  }
+
+  function repeatChapter() {
+    sendMessage({ type: "REPEAT_CHAPTER" });
+  }
+
   onMount(async () => {
     const adminToken = $page.url.searchParams.get("token") ?? "";
     token = adminToken;
@@ -143,6 +152,25 @@
           Confirm Found (admin override)
         </button>
       {/if}
+
+      <!-- Repeat Chapter — visible when a chapter is active (resets its progress) -->
+      {#if activeChapterIndex !== null}
+        <button
+          onclick={repeatChapter}
+          class="w-full min-h-[48px] bg-surface border border-border text-text-primary font-bold rounded-xl mt-3"
+        >
+          Repeat Chapter {activeChapterIndex + 1}
+        </button>
+      {/if}
+
+      <!-- Reset Game — always visible, destructive -->
+      <button
+        onclick={resetGame}
+        class="w-full min-h-[48px] rounded-xl mt-3 font-bold"
+        style="background: #ef4444; color: #f9fafb;"
+      >
+        Reset Game
+      </button>
     </section>
 
     <!-- Zone 4: Player list -->
