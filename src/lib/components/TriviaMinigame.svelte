@@ -217,8 +217,8 @@
 
   .option-btn {
     min-height: 56px;
-    background: #1c1c1e; /* --color-surface */
-    border: 2px solid #2d2d2f; /* --color-border */
+    background: #242426; /* --color-surface */
+    border: 2px solid #4a4a4c; /* --color-border */
     border-radius: 12px; /* rounded-xl */
     color: #f9fafb;
     font-size: 16px;

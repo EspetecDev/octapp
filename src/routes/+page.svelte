@@ -142,8 +142,8 @@
   }
 </script>
 
-<main class="flex min-h-[100dvh] flex-col items-center justify-center bg-bg px-6 py-8">
-  <div class="w-full max-w-sm flex flex-col gap-6">
+<main class="flex min-h-[100dvh] flex-col items-center justify-center bg-bg px-5 py-8">
+  <div class="w-full flex flex-col gap-6">
 
     <!-- App title -->
     <div class="text-center">

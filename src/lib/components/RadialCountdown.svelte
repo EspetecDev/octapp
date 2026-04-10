@@ -24,7 +24,7 @@
 </script>
 
 <svg viewBox="0 0 100 100" class="w-24 h-24" role="timer" aria-label="{remaining} seconds remaining">
-  <circle cx="50" cy="50" r={RADIUS} fill="none" stroke="#2d2d2f" stroke-width="8"/>
+  <circle cx="50" cy="50" r={RADIUS} fill="none" stroke="#4a4a4c" stroke-width="8"/>
   <circle
     cx="50" cy="50" r={RADIUS}
     fill="none"

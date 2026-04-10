@@ -98,7 +98,7 @@
 
   /* "Drop the mic" reward card with glow (UI-SPEC) */
   .reward-card {
-    background: #1c1c1e;
+    background: #242426;
     border: 1px solid #f59e0b; /* accent border */
     border-radius: 16px;
     padding: 32px; /* p-xl */
@@ -137,7 +137,7 @@
   }
 
   .accordion-item {
-    border-bottom: 1px solid #2d2d2f;
+    border-bottom: 1px solid #4a4a4c;
   }
 
   .accordion-trigger {

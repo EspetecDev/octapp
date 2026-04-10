@@ -386,8 +386,8 @@
     align-items: center;
     justify-content: space-between;
     padding: 0 16px;
-    background: #1c1c1e;
-    border-bottom: 1px solid #2d2d2f;
+    background: #242426;
+    border-bottom: 1px solid #4a4a4c;
     flex-shrink: 0;
   }
 
@@ -404,7 +404,7 @@
 
   .earn-btn {
     width: 100%;
-    max-width: 280px;
+    max-width: 360px;
     height: 80px;
     background: #ef4444;
     color: #f9fafb;
@@ -430,7 +430,7 @@
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
     padding: 16px;
-    border-top: 1px solid #2d2d2f;
+    border-top: 1px solid #4a4a4c;
     flex-shrink: 0;
   }
 
@@ -448,8 +448,8 @@
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    background: #1c1c1e;
-    border: 1px solid #2d2d2f;
+    background: #242426;
+    border: 1px solid #4a4a4c;
     border-radius: 8px;
     padding: 12px 16px;
     min-height: 64px;
@@ -468,8 +468,8 @@
   .cost-badge {
     font-size: 14px;
     color: #9ca3af;
-    background: #1c1c1e;
-    border: 1px solid #2d2d2f;
+    background: #242426;
+    border: 1px solid #4a4a4c;
     border-radius: 9999px;
     padding: 2px 8px;
     white-space: nowrap;
@@ -513,9 +513,9 @@
     list-style: none;
     padding: 0;
     margin: 0;
-    border: 1px solid #2d2d2f;
+    border: 1px solid #4a4a4c;
     border-radius: 8px;
-    background: #1c1c1e;
+    background: #242426;
     overflow: hidden;
   }
   .balance-row {
@@ -523,15 +523,15 @@
     align-items: center;
     justify-content: space-between;
     padding: 8px 16px;
-    border-bottom: 1px solid #2d2d2f;
+    border-bottom: 1px solid #4a4a4c;
     min-height: 44px;
   }
   .balance-row:last-child { border-bottom: none; }
   .balance-pill {
     font-size: 14px;
     color: #f9fafb;
-    background: #1c1c1e;
-    border: 1px solid #2d2d2f;
+    background: #242426;
+    border: 1px solid #4a4a4c;
     border-radius: 9999px;
     padding: 2px 10px;
   }
@@ -549,7 +549,7 @@
     flex-direction: column;
     gap: 2px;
     padding: 8px 16px;
-    border-bottom: 1px solid #2d2d2f;
+    border-bottom: 1px solid #4a4a4c;
     min-height: 44px;
   }
   .action-row:last-child { border-bottom: none; }
@@ -722,8 +722,8 @@
     bottom: 24px;
     left: 50%;
     transform: translateX(-50%);
-    background: #1c1c1e;
-    border: 1px solid #2d2d2f;
+    background: #242426;
+    border: 1px solid #4a4a4c;
     border-radius: 8px;
     padding: 10px 20px;
     font-size: 14px;

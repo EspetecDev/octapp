@@ -240,14 +240,14 @@
   }
 
   .card-front {
-    background: #1c1c1e;
-    border: 2px solid #2d2d2f;
+    background: #242426;
+    border: 2px solid #4a4a4c;
     color: #9ca3af;
     font-size: 20px;
   }
 
   .card-back {
-    background: #1c1c1e;
+    background: #242426;
     border: 2px solid #f59e0b;
     transform: rotateY(180deg);
   }

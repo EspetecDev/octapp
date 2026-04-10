@@ -82,8 +82,8 @@
   }
 
   .clue-card {
-    background: #1c1c1e;
-    border: 1px solid #2d2d2f;
+    background: #242426;
+    border: 1px solid #4a4a4c;
     border-radius: 16px; /* rounded-2xl */
     padding: 24px; /* p-lg */
   }
@@ -107,7 +107,7 @@
     width: 100%;
     min-height: 48px;
     background: transparent;
-    border: 1px solid #2d2d2f;
+    border: 1px solid #4a4a4c;
     border-radius: 12px;
     color: #9ca3af;
     font-size: 16px;
@@ -130,8 +130,8 @@
   }
 
   .hint-card {
-    background: #1c1c1e;
-    border: 1px solid #2d2d2f;
+    background: #242426;
+    border: 1px solid #4a4a4c;
     border-radius: 12px;
     padding: 16px; /* p-md */
   }

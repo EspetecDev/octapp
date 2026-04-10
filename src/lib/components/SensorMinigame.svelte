@@ -253,8 +253,8 @@
     position: relative;
     height: 240px;
     width: 48px;
-    background: #1c1c1e;
-    border: 1px solid #2d2d2f;
+    background: #242426;
+    border: 1px solid #4a4a4c;
     border-radius: 9999px;
     overflow: hidden;
   }
