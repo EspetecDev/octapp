@@ -123,7 +123,12 @@ Plans:
   2. `GET /health` returns HTTP 200; the Network tab shows a 101 Switching Protocols response for the WebSocket connection (not just 200 from the health check)
   3. Admin can reach `/admin` with the correct ADMIN_TOKEN and is rejected with 401 when the token is wrong or missing — confirmed in Railway production (not just local)
   4. Railway logs show `Admin token: ***` (masked, not `(not set)`) immediately after first deploy — confirming the env var was set without trailing whitespace
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 05-01-PLAN.md — Server hardening (uncaughtException handler, railway.toml healthcheckTimeout + drainingSeconds) + git push to main
+- [ ] 05-02-PLAN.md — Railway project setup: GitHub connect, ADMIN_TOKEN via Raw Editor, domain generation
+- [ ] 05-03-PLAN.md — Smoke test: health check, WebSocket 101 in DevTools, admin gate verified in production
 
 ### Phase 6: Three-Device Validation
 **Goal**: All three party roles (admin, groom, party member) connect simultaneously from real devices and the full game flow — chapter unlock, minigames, sensor permission — works end-to-end.
