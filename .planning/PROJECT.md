@@ -8,6 +8,15 @@ A smartphone-targeted interactive web game built for a bachelor party. The groom
 
 The groom has a memorable, personalized gauntlet to run through his own bachelor party — driven by his friends, full of surprises.
 
+## Current Milestone: v1.1 Deployment & Testing
+
+**Goal:** Deploy to Railway and validate the full game on real devices.
+
+**Target features:**
+- Railway deployment — configure env vars, deploy, get live public URL
+- Multi-device smoke test — admin on PC, groom + party on 2 phones
+- Bug fixing — fix issues surfaced during real multi-device play
+
 ## Requirements
 
 ### Validated
@@ -29,10 +38,9 @@ The groom has a memorable, personalized gauntlet to run through his own bachelor
 
 ### Active
 
-- [ ] Admin panel to manage the night: unlock phases, configure content before the event
-- [ ] Group view: join the game on their phones, earn tokens, spend them on power-ups and sabotages
-- [ ] Real-time multiplayer sync — group sees groom's progress; power-ups/sabotages take effect live
-- [ ] Phase system — admin unlocks phases throughout the night (e.g., dinner → bar → club)
+- [ ] Railway deployment — live public URL, production env vars configured
+- [ ] Multi-device validation — all roles (admin, groom, party) tested simultaneously on real devices
+- [ ] Bug fixes from real-device testing
 
 ### Out of Scope
 
@@ -83,4 +91,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-09 — Phase 03 Groom Experience complete*
+*Last updated: 2026-04-10 — Milestone v1.1 Deployment & Testing started*
