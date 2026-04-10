@@ -166,7 +166,7 @@
           maxlength="6"
           placeholder="XXXXXX"
           class="
-            w-full h-14 rounded-lg bg-surface border border-border px-4
+            w-full h-14 rounded-lg bg-surface border-2 border-border px-4
             text-[24px] font-bold text-text-primary text-center tracking-[0.2em] uppercase
             focus:outline-none focus-visible:ring-2 focus-visible:ring-text-primary
             disabled:opacity-50
@@ -190,7 +190,7 @@
           autocomplete="nickname"
           placeholder="Your name"
           class="
-            w-full h-[52px] rounded-lg bg-surface border border-border px-4
+            w-full h-[52px] rounded-lg bg-surface border-2 border-border px-4
             text-base text-text-primary
             focus:outline-none focus-visible:ring-2 focus-visible:ring-text-primary
             disabled:opacity-50
@@ -212,7 +212,7 @@
               flex-1 h-14 rounded-lg font-bold text-base transition-all duration-150
               {role === 'groom'
                 ? 'bg-accent-groom text-[#0f0f0f] border-2 border-accent-groom'
-                : 'bg-surface border border-border text-text-secondary'}
+                : 'bg-surface border-2 border-border text-text-primary'}
               {(groomTaken || gameStateLoading) ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}
               min-h-[44px]
             "
@@ -230,7 +230,7 @@
               flex-1 h-14 rounded-lg font-bold text-base transition-all duration-150
               {role === 'group'
                 ? 'bg-accent-group text-text-primary border-2 border-accent-group'
-                : 'bg-surface border border-border text-text-secondary'}
+                : 'bg-surface border-2 border-border text-text-primary'}
               min-h-[44px] cursor-pointer
             "
             onclick={() => selectRole("group")}
