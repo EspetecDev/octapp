@@ -3,10 +3,10 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: Deployment & Testing
 current_plan: 1
-status: Defining requirements
+status: Roadmap created
 last_updated: "2026-04-10T00:00:00Z"
 progress:
-  total_phases: 0
+  total_phases: 3
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -23,17 +23,23 @@ See: `.planning/PROJECT.md` (updated 2026-04-07)
 
 ## Current Status
 
-**Stage:** Defining requirements
-**Active phase:** None (roadmap not yet created)
+**Stage:** Roadmap created — ready to plan Phase 5
+**Active phase:** None (planning not yet started)
 **Current Plan:** —
-**Last action:** Milestone v1.1 started (2026-04-10) — Railway deployment + multi-device testing
+**Last action:** v1.1 roadmap created (2026-04-10) — 3 phases (5, 6, 7) covering deploy, validation, bug fixes
 
-## Phase Progress
+## Phase Progress (v1.0 — complete)
 
 - [x] Phase 1: Foundation (4/4 plans complete)
 - [x] Phase 2: Admin & Game Structure (4/4 plans complete)
 - [x] Phase 3: Groom Experience (7/7 plans complete)
 - [x] Phase 4: Group Economy & Multiplayer (4/4 plans complete, verified 2026-04-09)
+
+## Phase Progress (v1.1 — current milestone)
+
+- [ ] Phase 5: Railway Deploy & Smoke Test (0/? plans complete)
+- [ ] Phase 6: Three-Device Validation (0/? plans complete)
+- [ ] Phase 7: Mobile Bug Fixes (0/? plans complete)
 
 ## Plan Progress — Phase 01
 
@@ -89,6 +95,13 @@ See: `.planning/PROJECT.md` (updated 2026-04-07)
 - [Phase 04-group-economy-multiplayer]: handleSpend maps filteredShop index to catalog index via indexOf before sending SPEND_TOKEN (D-04/D-13)
 - [Phase 04-group-economy-multiplayer]: EARN_TOKEN handler must be inside handleMessage() function body — bare return statements at module scope are illegal in ESM (Pitfall: placement bug)
 
+**v1.1 deployment notes (from research):**
+- ADMIN_TOKEN must be set via Railway Raw Editor to avoid trailing-whitespace bugs — verify in logs immediately after deploy
+- Health check (GET /health → 200) does NOT confirm WebSocket health — must check for 101 Switching Protocols in DevTools separately
+- wss:// protocol switching already correct in src/lib/socket.ts:183 — no code change needed
+- Bun.serve() already binds to 0.0.0.0 — no hostname fix needed
+- 30s heartbeat is sufficient for Railway's 60s idle timeout on custom domain
+
 ## Performance Metrics
 
 | Phase | Plan | Duration (min) | Tasks | Files |
@@ -112,7 +125,7 @@ See: `.planning/PROJECT.md` (updated 2026-04-07)
 
 ## Next Step
 
-All 4 phases complete. Milestone v1.0 achieved. Ready for device testing and deployment.
+Roadmap created for v1.1 (Phases 5, 6, 7). Ready to plan Phase 5: Railway Deploy & Smoke Test.
 
 ---
-*Last updated: 2026-04-09 after Phase 04 verification pass*
+*Last updated: 2026-04-10 — v1.1 roadmap created, 3 phases defined*

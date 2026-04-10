@@ -101,3 +101,56 @@ Plans:
 | 2. Admin & Game Structure | 3/4 | In Progress|  |
 | 3. Groom Experience | 3/7 | In Progress|  |
 | 4. Group Economy & Multiplayer | 4/4 | Complete   | 2026-04-09 |
+
+---
+
+## Milestone 2: Bachelor Party Game v1.1 — Deployment & Testing
+
+## Phases
+
+- [ ] **Phase 5: Railway Deploy & Smoke Test** - Deploy to Railway, configure ADMIN_TOKEN, confirm HTTPS and WebSocket 101 upgrade via DevTools
+- [ ] **Phase 6: Three-Device Validation** - Admin + Groom + Party join simultaneously; chapter unlock, sensor minigame, real-time sync all pass on real hardware
+- [ ] **Phase 7: Mobile Bug Fixes** - Android back button safety, server crash protection
+
+## Phase Details
+
+### Phase 5: Railway Deploy & Smoke Test
+**Goal**: The app is live on a public Railway URL with ADMIN_TOKEN secured, and a single user can verify the WebSocket connection is healthy before any real-device testing begins.
+**Depends on**: Phase 4
+**Requirements**: DEPLOY-01, DEPLOY-02
+**Success Criteria** (what must be TRUE):
+  1. Navigating to the Railway public URL in a browser loads the join page with no console errors
+  2. `GET /health` returns HTTP 200; the Network tab shows a 101 Switching Protocols response for the WebSocket connection (not just 200 from the health check)
+  3. Admin can reach `/admin` with the correct ADMIN_TOKEN and is rejected with 401 when the token is wrong or missing — confirmed in Railway production (not just local)
+  4. Railway logs show `Admin token: ***` (masked, not `(not set)`) immediately after first deploy — confirming the env var was set without trailing whitespace
+**Plans**: TBD
+
+### Phase 6: Three-Device Validation
+**Goal**: All three party roles (admin, groom, party member) connect simultaneously from real devices and the full game flow — chapter unlock, minigames, sensor permission — works end-to-end.
+**Depends on**: Phase 5
+**Requirements**: VALID-01, VALID-02, VALID-03
+**Success Criteria** (what must be TRUE):
+  1. Admin on PC, groom on iPhone, and a party member on Android all join the same session simultaneously; each sees the correct role view with no console errors
+  2. Admin unlocks a chapter and all three devices display the chapter transition card within 2 seconds — verified by watching screens side by side
+  3. Groom taps the sensor minigame permission button on real iOS and the DeviceMotion permission dialog appears; after granting, the tilt meter responds to physical device movement
+  4. Groom locks iPhone for 15 seconds mid-challenge, unlocks it, and the game view restores automatically without a manual page reload
+**Plans**: TBD
+**UI hint**: yes
+
+### Phase 7: Mobile Bug Fixes
+**Goal**: The two known mobile bugs that can break or corrupt a live session are fixed and verified on real hardware.
+**Depends on**: Phase 6
+**Requirements**: FIX-01, FIX-02
+**Success Criteria** (what must be TRUE):
+  1. Pressing the Android hardware back button during an active session does not navigate away from the game — the session stays on screen
+  2. A server-side unhandled error (simulated in testing) is logged to Railway logs and the server process keeps running — existing sessions are not wiped
+  3. After the fix, a fresh three-device join confirms no regressions from either change
+**Plans**: TBD
+
+## Progress
+
+| Phase | Plans Complete | Status | Completed |
+|-------|----------------|--------|-----------|
+| 5. Railway Deploy & Smoke Test | 0/? | Not started | - |
+| 6. Three-Device Validation | 0/? | Not started | - |
+| 7. Mobile Bug Fixes | 0/? | Not started | - |

@@ -160,6 +160,23 @@
 - [ ] **FIX-01**: Android back button does not navigate away from the game during an active session
 - [ ] **FIX-02**: Server uncaughtException handler logs errors and keeps the process alive (no session wipe on unhandled error)
 
+## v1.1 Traceability
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| DEPLOY-01 | Phase 5 | Pending |
+| DEPLOY-02 | Phase 5 | Pending |
+| VALID-01 | Phase 6 | Pending |
+| VALID-02 | Phase 6 | Pending |
+| VALID-03 | Phase 6 | Pending |
+| FIX-01 | Phase 7 | Pending |
+| FIX-02 | Phase 7 | Pending |
+
+**v1.1 Coverage:**
+- v1.1 requirements: 7 total
+- Mapped to phases: 7
+- Unmapped: 0 ✓
+
 ---
 *Requirements defined: 2026-04-07*
-*Last updated: 2026-04-10 — v1.1 Deployment & Testing requirements added*
+*Last updated: 2026-04-10 — v1.1 Deployment & Testing requirements added; traceability filled for Phases 5-7*
