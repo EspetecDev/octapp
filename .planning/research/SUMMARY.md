@@ -1,135 +1,174 @@
-# Research Summary
+# Project Research Summary
 
-**Project:** Bachelor Party Web Game (working title: octapp)
-**Synthesized:** 2026-04-07
-**Source files:** realtime-multiplayer.md, frontend-stack.md, backend-deployment.md, ux-game-design.md
+**Project:** octapp — Bachelor Party Game
+**Domain:** Real-time multiplayer web game, Railway cloud deployment, mobile browser testing
+**Milestone:** v1.1 — Deployment & Testing
+**Researched:** 2026-04-10
+**Confidence:** HIGH
 
----
+## Executive Summary
 
-## Recommended Stack
+octapp is a SvelteKit static-adapter frontend + Bun WebSocket server already validated in previous phases. This milestone is purely operational: get the working local build live on Railway, verify it behaves on real iOS and Android hardware, and fix the mobile-specific bugs that only surface on physical devices. The stack, architecture, and game logic are settled — no technology decisions remain open.
 
-| Layer | Choice | Rationale |
-|-------|--------|-----------|
-| **Frontend framework** | Svelte 5 + SvelteKit | 47KB bundle vs React's 156KB — load time matters on bar/venue WiFi. Runes make reactive WebSocket state trivial. File-based routing handles the three distinct views (admin, groom, group) naturally. |
-| **Styling / animations** | CSS + Web Animations API | Card flips, timers, and sensor games are UI interactions, not sprites. Phaser/PixiJS would add 400KB–1MB+ for zero benefit. |
-| **Real-time transport** | WebSocket (bidirectional) | Players push power-ups and sabotages server-side. SSE is server-to-client only; polling is unacceptably laggy. No alternative. |
-| **WebSocket server** | Bun + native Bun.serve WebSockets | Built on uWebSockets, native pub/sub maps directly to game rooms, no extra deps. Node.js + Socket.IO is a valid fallback if you want Socket.IO's auto-reconnect and rooms abstraction out of the box. |
-| **State** | In-memory JS object (plain singleton) | One-time event, zero persistence required. SQLite or Redis adds deployment complexity with no user-facing benefit. |
-| **Deployment** | Railway Hobby ($5/mo) | Persistent process (required for WebSocket), automatic HTTPS, git-push deploy, no Docker. Render free tier sleeps after 15 min — a live-event killer. Vercel is architecturally incompatible. |
-| **Device/sensor APIs** | Native browser: DeviceMotion, DeviceOrientation, Wake Lock, Pointer Events | No library needed. Hammer.js is unmaintained (last commit 2016). Use Pointer Events + CSS `touch-action` for gestures. |
+The deployment path is low-friction. The existing Dockerfile, railway.toml, and server code are production-ready with two caveats: ADMIN_TOKEN must be set in the Railway dashboard (the only manual env var step), and a custom Railway domain should be provisioned before multi-device testing to avoid the shared-CDN idle-timeout behaviour on `*.up.railway.app`. Code-wise, `wss://` handling is already correct in `src/lib/socket.ts` (line 183 derives protocol from `window.location.protocol`), and `Bun.serve()` defaults to `0.0.0.0` so no hostname fix is needed — one researcher was mistaken on this point.
 
-**Rejected paths (with reasons):**
-- **Vercel:** Serverless cannot hold a WebSocket game server. Functions time out; no shared memory between invocations.
-- **PartyKit / Cloudflare Durable Objects:** Architecturally ideal but steeper mental model. Overkill for 5-10 connections at a one-time event — unless the team is already comfortable with Cloudflare's model (see Open Questions).
-- **Phaser / PixiJS:** 400KB–1MB+ overhead for minigames that are fundamentally HTML UI, not sprite/physics-based.
-- **Firebase / Supabase Realtime:** DB-oriented primitives bent into an event bus shape. Supabase also pauses inactive free projects after 1 week.
+The primary risks are mobile-specific and only discoverable on real devices: iOS Safari silently killing WebSocket connections on screen lock (the 35s heartbeat watchdog already mitigates this), the DeviceMotion permission gate silently failing if not triggered inside a user gesture, and the `*.up.railway.app` CDN 30s idle-drop (mitigated by custom domain + existing 30s server heartbeat which is sufficient for the confirmed 60s proxy idle timeout). All three have clear prevention strategies and none require architectural changes.
 
 ---
 
-## Key Architectural Decisions
+## Key Findings
 
-### 1. Three Completely Separate Views, One Shared Game State
+### Stack Additions Needed (Minimal — Mostly Operational)
 
-Admin, groom, and group participants have entirely different information privileges and interaction models. These map to separate SvelteKit routes (`/admin`, `/groom`, `/party`). All three subscribe to the same Svelte store populated by server-pushed WebSocket events. The **hidden information contract** must be enforced at the server layer — the server sends each client only its role-appropriate state slice. Never rely on client-side filtering to protect hidden information.
+The existing stack requires no new libraries or services. What v1.1 adds is operational tooling only.
 
-### 2. Broadcast Full State Snapshots, Not Deltas
+**One-time setup actions:**
+- Railway CLI (`brew install railway` or `npm i -g @railway/cli`) — for `railway login`, `railway link`, `railway up`, `railway logs`
+- Railway dashboard: generate a public domain under Service → Settings → Networking → Public Networking
+- Railway dashboard: set `ADMIN_TOKEN` (only manual env var — see below)
 
-On every game event (phase unlock, power-up deployed, sabotage activated), broadcast the complete canonical game state to all connected clients. At 5-10 players with infrequent events, payloads are tiny. The critical benefit: reconnecting clients instantly get the current state by receiving the next broadcast — no reconciliation logic required.
+**Core technologies already in place:**
+- Bun 1.x (oven/bun:1 Docker image) — WebSocket server runtime; floating `1` tag acceptable for a one-time event
+- SvelteKit with static adapter — pre-renders all routes at build time; WebSocket URL derived from `window.location` at runtime (correct pattern for static adapter)
+- Railway Dockerfile builder — Railpack does not yet auto-detect Bun; Dockerfile path is required and already configured in railway.toml
 
-### 3. Session Join by Short Code, No Accounts
+**What NOT to add:** Redis, SQLite, nginx sidecar, Socket.IO, horizontal scaling, or dotenvx. All are unnecessary for 5–10 players on a single ephemeral server.
 
-No authentication, no persistent user profiles. Admin creates a session; the server generates a short alphanumeric room code (6 chars, excluding visually ambiguous characters 0/O/1/I/l). Players join at a shared URL and enter the code. Admin auth is a single hardcoded `ADMIN_TOKEN` env var — no JWT, no OAuth.
+### Environment Variables
 
-### 4. Persistent Process, In-Memory State
+| Variable | Source | Action Required |
+|----------|--------|----------------|
+| `ADMIN_TOKEN` | Manual — Railway dashboard | Set before first deploy. Use Raw Editor to avoid trailing-whitespace bugs. Seal the variable. |
+| `PORT` | Railway injects automatically (`8080`) | Do NOT set. Server already reads `process.env.PORT ?? 3000`; Railway's value takes precedence. |
+| `RAILWAY_PUBLIC_DOMAIN` | Railway injects automatically | Read-only reference if needed server-side. Not needed by current code. |
 
-The game server must be a persistent process, not a serverless function. State lives in a module-level JavaScript object on the server. If the server restarts mid-game (rare on Railway), the admin re-unlocks the current phase. No database needed.
+**ADMIN_TOKEN is the only manual setup step in the Railway dashboard.**
 
-### 5. Server-Side Pings, Client-Side Reconnect
+### Expected Test Coverage (What Must Pass)
 
-Railway drops WebSocket connections idle for over 60 seconds. Server sends heartbeat pings every 30 seconds. Clients implement exponential backoff reconnect (1s → 2s → 4s). On reconnect, server re-sends full current state.
+Multi-device testing has three roles: Admin (PC browser), Groom (iPhone), Party Member (Android phone). These scenarios must pass for the night to work:
 
-### 6. Phase-Driven Game Loop, Admin-Controlled Pacing
+**Table stakes — game-breaking if they fail:**
+- Three-device join with correct role assignment
+- Chapter unlock broadcasts to all devices within 2 seconds
+- Trivia answer registers and score appears on admin view
+- Sensor (tilt) minigame: iOS DeviceMotion permission gate appears and motion data flows
+- Token earn/spend with correct server-authoritative balance
+- Screen lock recovery: reconnect fires and full-state snapshot restores game view
 
-The admin is the sole pacing controller. Game phases (lobby → venue 1 → venue 2 → venue 3 → finale) are unlocked manually from the admin dashboard. Each phase is a self-contained chapter. Phase transitions are explicit "new chapter" moments with a recap card.
+**Differentiators (validate the party feel, not blocking):**
+- Sub-1s broadcast latency for power-up activation
+- Haptic feedback on win/loss (Android only — iOS Safari has no Vibration API)
+- All three devices show chapter transition overlay within 2 seconds
 
-### 7. iOS Sensor Permission Gates Are Mandatory
+**Defer to second pass:** Portrait lock edge cases, font rendering on low-DPI Android, custom domain vs `*.up.railway.app` SSL cert timing.
 
-`DeviceMotionEvent.requestPermission()` must be called inside a user gesture handler on iOS — not on page load. Before every sensor-based minigame, show a tap-to-enable prompt. Both `DeviceMotionEvent` and `DeviceOrientationEvent` need separate permission calls. All sensor APIs require HTTPS.
+### Architecture: No New Components Required
 
----
+The current single-process Bun.serve architecture (HTTP + WebSocket + static file serving on one port) is fully compatible with Railway's proxy model. Railway terminates TLS at the edge; Bun receives plain WebSocket frames internally. No nginx sidecar, no separate static CDN, no load balancer config is needed.
 
-## Critical Gotchas
+**Verified compatible, no code changes required:**
 
-**iOS WebSocket kills on background (CRITICAL)**
-When an iPhone user locks the screen or switches apps, iOS may terminate the WebSocket connection within seconds — with no `onclose` event fired. Use a library with built-in auto-reconnect (Socket.IO v4+, PartySocket) rather than the raw browser WebSocket API. Implement a "Reconnecting..." overlay rather than requiring a hard reload.
+| Component | Status | Verified Fact |
+|-----------|--------|---------------|
+| `wss://` protocol switching | Already correct | `src/lib/socket.ts` line 183 derives protocol from `window.location.protocol` |
+| `Bun.serve()` host binding | Already correct | Bun defaults to `0.0.0.0` when no `hostname` is specified (confirmed in Bun docs) |
+| Server heartbeat (30s) | Already correct | Railway proxy idle timeout is 60s; 30s heartbeat provides 30s margin |
+| `PORT` from env | Already correct | `process.env.PORT ?? 3000`; Railway injects `PORT=8080` at runtime |
+| `/health` endpoint | Already correct | Returns 200; railway.toml references it with 10s timeout |
+| Client reconnect + full-state | Already correct | Handles Railway's 15-minute hard connection cutoff |
 
-**Render free tier sleeps (will ruin the event)**
-Render's free tier spins down after 15 minutes of no traffic. Guests arriving to a cold server get ~60 seconds of nothing. Use Railway or Render always-on. Non-negotiable for a live event.
+**Should add (low effort, meaningful safety):**
+- `process.on("uncaughtException", ...)` handler in `server/index.ts` — prevents silent crash leading to state wipe mid-game
+- Client-side PING discard — prevents PING frames surfacing as unknown message type in client log
+- `drainingSeconds = 5` in railway.toml — gives in-flight WS connections 5s to close gracefully on redeploy
 
-**Railway 60-second idle WebSocket timeout**
-Railway's load balancer drops connections idle over 60 seconds. Implement server-side heartbeat pings every 30 seconds.
+**One architecture risk:** In-memory state is wiped on any Railway restart (crash, redeploy, manual restart). With `restartPolicyType = "on-failure"`, a crash mid-game resets all session state. Operational mitigation: complete game setup within 30 minutes of game start, not hours ahead.
 
-**iOS has no fullscreen**
-`requestFullscreen()` is not implemented in iOS Safari. Design all layouts with `height: 100dvh` (not `100vh`) to account for browser chrome.
+### Critical Pitfalls
 
-**iOS sensor permission must be gated behind a user tap**
-Calling `DeviceMotionEvent.requestPermission()` outside a user gesture handler on iOS silently fails — no error, no prompt, no motion data.
+1. **`*.up.railway.app` CDN drops WebSocket at ~30s** — The shared Railway CDN terminates idle connections faster than the documented 60s proxy timeout. Fix: provision a custom domain before multi-device testing. The more permissive proxy behaviour on custom domains makes heartbeat timing non-critical.
 
-**DeviceMotion axis polarity differs between iOS and Android**
-`DeviceMotionEvent.acceleration` reports opposite signs on some axes between platforms. Build a sensor normalization layer early.
+2. **iOS Safari kills WebSocket silently on screen lock** — `onclose` does not fire (WebKit bug #247943). The existing 35s client-side heartbeat watchdog already handles this. Test explicitly: lock groom's iPhone for 15 seconds mid-trivia, verify state restores on unlock.
 
-**SvelteKit SSR crashes on browser APIs**
-Any code touching `window`, `navigator`, `DeviceMotionEvent`, or WebSocket must be inside `onMount()` or guarded with `if (browser)`. Set `export const ssr = false` in each route's `+page.ts` to opt out entirely.
+3. **`ADMIN_TOKEN` missing or has trailing whitespace** — Server logs `"(not set)"` in Railway logs only, not in the browser. Use Railway's Raw Editor when setting the variable. Check Railway logs immediately after first deploy for this message.
 
-**Wake Lock releases on tab switch**
-Re-acquire the Wake Lock in the `visibilitychange` event handler to prevent the screen sleeping mid-challenge.
+4. **Health check passes while WebSocket is broken** — Railway's `GET /health` check has no knowledge of WebSocket state. After each deploy, manually verify the WS connection in browser DevTools (Network → WS tab, confirm 101 Switching Protocols). Do not rely on the green health indicator as WebSocket proof.
 
-**Screen orientation lock does not work on iOS**
-`screen.orientation.lock()` always rejects on iOS Safari. Fall back to a CSS `@media (orientation: landscape)` overlay.
+5. **DeviceMotion permission silently denied on iOS** — `DeviceMotionEvent.requestPermission()` must be called synchronously inside a direct user gesture handler. Calling it on page load or in a `setTimeout` produces no dialog and no error — just zero motion data. Only testable on a real iOS device, not simulator.
 
----
-
-## UX Principles
-
-1. **One action at a time, always.** Each screen communicates one thing and requests one action. A player distracted for 30 seconds should orient within 3 seconds of picking up their phone.
-
-2. **Design for a slightly drunk person holding a drink.** Large high-contrast text, color-coded role identity (groom = gold, group = red/orange, admin = neutral), haptic feedback for every meaningful action.
-
-3. **Simultaneous play — no dead air.** When the groom is in a challenge, the group must have something to do simultaneously. No player's phone should show a static state for more than 30 seconds during an active phase.
-
-4. **One currency, context-filtered shop.** Show only the power-ups applicable to the current minigame context. Calibrate so the group can afford ~one sabotage per two minigames.
-
-5. **Announce sabotages; do not surprise.** Sabotages are social events and story beats, not silent mechanical penalties. Never completely lock the groom out of playing.
-
-6. **Score delta, not total.** Show "+150 pts" in large type, not cumulative totals. Narrative framing keeps stakes legible.
-
-7. **Drop-in/drop-out at the phase level.** Each phase is a complete chapter. Phase transitions are designed re-entry points.
-
-8. **Three-act pacing.** Act 1 (first venue): simple mechanics. Act 2 (second venue): full sabotage catalog, peak tension. Act 3 (final venue): shorter high-stakes challenges, token dump into finale.
-
-9. **Minigame variety — never same type back-to-back.** Target sequence: physical → cognitive → social → physical.
-
-10. **Tap response → haptic → full-screen celebration.** Buttons animate on touch before result is known. Three haptic patterns: correct, wrong, time-expired. Correct answers get 1.5–2 second full-screen celebration.
-
-11. **Timer design: radial drain, always visible.** Circular/radial progress indicator. Recommended durations: trivia 15–20s, sensor games 10–15s, memory/matching 30–45s.
+6. **State lost on Railway restart** — Any deploy or crash wipes in-memory session state. Set up the game close to start time. Export the SAVE_SETUP payload locally as a backup.
 
 ---
 
-## Open Questions
+## Implications for Roadmap
 
-1. **Single shared URL or role-specific join links?** Role-specific links are safer (no one can claim the groom role) but add coordination friction. Decision required before designing the join flow.
+### Phase 1: Railway Deploy and Smoke Test
+**Rationale:** Everything else depends on having a live URL. Catch deployment blockers in isolation before inviting three people to test simultaneously.
+**Delivers:** Live HTTPS URL, confirmed WebSocket 101 in DevTools, ADMIN_TOKEN verified in Railway logs.
+**Actions:**
+- `railway login` + `railway link` + `railway up`
+- Set `ADMIN_TOKEN` in Railway dashboard (Raw Editor, then Seal)
+- Generate domain under Service → Settings → Networking
+- Confirm `/health` returns 200; confirm WebSocket shows 101 in browser DevTools
+- Check Railway logs for `"Admin token: (not set)"` — if seen, redeploy after fixing
+**Avoids:** Pitfall 3 (missing ADMIN_TOKEN), Pitfall 5 (false health check confidence)
+**Research flag:** Standard patterns — no deeper research needed.
 
-2. **How does the groom's identity persist across reconnects?** Options: session token in localStorage, display name re-entry, or unique join link encoding player ID.
+### Phase 2: Custom Domain and Connection Stability
+**Rationale:** The `*.up.railway.app` CDN 30s idle drop is a silent game-breaker that looks like a server bug. Resolve this before multi-device testing to avoid false debugging rabbit holes.
+**Delivers:** Stable WebSocket connection surviving 5+ minutes of idle, confirmed via Railway logs showing no unexpected close events.
+**Actions:**
+- Configure custom domain in Railway dashboard (preferred) OR reduce heartbeat from 30s to 20s as fallback
+- Optionally add `drainingSeconds = 5` to railway.toml
+- Optionally add `process.on("uncaughtException", ...)` to server/index.ts
+- Monitor Railway logs for 5 minutes with no game activity — confirm no disconnects
+**Avoids:** Pitfall 1 (`*.up.railway.app` 30s CDN drop)
+**Research flag:** Standard patterns — Railway dashboard custom domain setup is documented.
 
-3. **Push notifications between venues: build a PWA or skip?** PWA push requires service workers and user opt-in — significant added scope. Alternative: loud in-app alert when player opens their phone.
+### Phase 3: Three-Device Join and Core Flow
+**Rationale:** Validates the deployment works for the actual party configuration before drilling into individual minigame issues.
+**Delivers:** All three roles connected simultaneously, chapter unlock broadcast within 2s, scores updating on admin view.
+**Test sequence (run in order):**
+1. Admin opens live URL on PC — verify no console errors, code generated
+2. Groom joins via code on iPhone — verify role assignment and waiting view
+3. Party member joins on Android — verify group waiting view
+4. Admin unlocks Chapter 1 — verify all three update within 2 seconds
+5. Admin triggers trivia — verify groom sees minigame view
+**Avoids:** Pitfall 6 (mixed-content wss vs ws — already fixed, but verify in DevTools)
+**Research flag:** Standard patterns.
 
-4. **Is there a shared physical screen at any venue?** Jackbox-model (one TV + phone controllers) changes the group view design significantly.
+### Phase 4: Mobile-Specific Bug Hunt
+**Rationale:** The bugs that only appear on physical devices cannot be found earlier. This phase is explicitly discovery-driven.
+**Delivers:** All table-stakes scenarios passing on real hardware.
+**High-priority test cases:**
+- Sensor (tilt) minigame on groom's iPhone — DeviceMotion permission gate (Pitfall 5 / FEATURES Pitfall 8)
+- Screen lock recovery — groom iPhone locked 15s mid-trivia, verify state restore (Pitfall 2)
+- Android screen lock 90s — verify clean rejoin without full page refresh (Pitfall 7)
+- Token earn race: rapid taps on party phone — verify no negative balance
+- Android back button mid-game — verify does not exit session
+- iOS viewport keyboard push on join code entry (low risk, verify quickly)
+**Avoids:** Pitfall 2, Pitfall 7, Pitfall 8
+**Research flag:** Needs real-device validation — sensor minigame permission flow cannot be confirmed in simulator. Real iOS device required.
 
-5. **Are minigames and trivia pre-authored or configurable?** Hardcoded at build time vs. admin-configurable setup flow vs. JSON config file. Gates the entire admin dashboard scope.
+### Phase Ordering Rationale
 
-6. **What is the complete sabotage/power-up catalog?** Needs to be defined before building the economy system.
+- Phase 1 before everything: no live URL means no real-device testing is possible.
+- Phase 2 before three-device testing: CDN drop would cause false failures in Phase 3, wasting test session time.
+- Phase 3 before Phase 4: establishing baseline connectivity catches deployment issues before spending time on mobile-specific edge cases.
+- Phase 4 is discovery-driven by design: not all bugs are known ahead of time. Budget time for iteration.
 
-7. **Railway vs. PartyKit — final infrastructure call?** Two research streams diverged. Deciding factor: team comfort with Cloudflare Durable Objects.
+### Research Flags
+
+**Needs real-device validation (cannot be confirmed by code inspection or simulator):**
+- Phase 4: DeviceMotion permission gate on physical iOS device
+- Phase 4: Screen lock WebSocket recovery on iOS Safari (WebKit bug — behaviour varies by iOS version)
+- Phase 4: Android back-button history stack behaviour (varies by SvelteKit router usage)
+
+**Standard patterns (no deeper research needed):**
+- Phase 1: Railway CLI deploy workflow — well-documented
+- Phase 2: Custom domain setup — Railway dashboard UI
+- Phase 3: Multi-device WebSocket join — existing reconnect + full-state architecture already validated in Phase 01
 
 ---
 
@@ -137,12 +176,49 @@ Re-acquire the Wake Lock in the `visibilitychange` event handler to prevent the 
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| WebSocket as transport | HIGH | Bidirectional requirement eliminates all alternatives |
-| Svelte 5 + SvelteKit | HIGH | Bundle size and reactivity advantages well-documented |
-| Railway for deployment | HIGH | Persistent process requirement eliminates serverless |
-| In-memory state | HIGH | One-time event; tradeoffs clearly favor simplicity |
-| Bun vs. Socket.IO for WS | MEDIUM | Socket.IO's built-in reconnect may save iOS debugging time |
-| Sensor API behavior | MEDIUM | Axis polarity differences need hands-on testing early |
-| Railway vs. PartyKit | MEDIUM | Requires team decision on Cloudflare familiarity |
-| Token economy calibration | LOW | Requires playtesting with the real group |
-| Minigame timing durations | LOW | Directionally correct; need playtesting to calibrate |
+| Stack | HIGH | No new technologies. Railway CLI and Dockerfile patterns confirmed from Railway official docs. |
+| Features | HIGH | Test scenarios derived from real failure modes documented across multiple sources. Mobile-specific issues are well-known. |
+| Architecture | HIGH | Railway proxy behaviour (60s idle timeout, 15-min cutoff, TLS termination, 0.0.0.0 binding) confirmed from Railway Specs & Limits page and Bun official docs. |
+| Pitfalls | HIGH for Railway/iOS; MEDIUM for Android timing | iOS Safari WebKit bugs are filed and confirmed. Android timer suspension behaviour varies by manufacturer. |
+
+**Overall confidence: HIGH**
+
+### Gaps to Address During Execution
+
+- **`*.up.railway.app` vs custom domain idle timeout:** PITFALLS.md reports ~30s CDN drop on the shared domain; ARCHITECTURE.md confirms 60s from the Railway Specs & Limits page. These are not contradictory — the CDN layer in front of `*.up.railway.app` is more aggressive than the documented proxy timeout. Custom domain sidesteps this entirely. Validate in Phase 2 by monitoring logs before committing to heartbeat interval change.
+- **Heartbeat interval (30s vs 20s):** The existing 30s heartbeat is confirmed sufficient against the 60s proxy idle timeout. If custom domain is not configured, reducing to 20s provides extra margin against the CDN layer. Decision point: resolve in Phase 2 based on observed behaviour.
+- **`visibilitychange` reconnect on iOS tab return:** Not currently implemented. The 35s watchdog handles it eventually. Flag for Phase 4 bug-fix pass if screen-lock testing reveals noticeable recovery delay.
+- **Admin role restoration on tab refresh:** FEATURES.md identifies this as high-complexity. Current implementation stores admin role in WS server memory. If admin refreshes mid-game, role reassignment depends on reconnect flow. Needs explicit testing in Phase 3.
+
+---
+
+## Sources
+
+### Primary (HIGH confidence — official documentation)
+- [Railway Networking Specs & Limits](https://docs.railway.com/networking/public-networking/specs-and-limits) — 60s proxy idle timeout, 15-min connection cutoff, TLS termination, connection limits
+- [Railway SSE vs WebSocket Guide](https://docs.railway.com/guides/sse-vs-websockets) — 15-minute hard cutoff, reconnect requirement
+- [Railway Config as Code Reference](https://docs.railway.com/config-as-code/reference) — railway.toml all options including drainingSeconds
+- [Railway CLI Guide](https://docs.railway.com/guides/cli) — login, link, up, logs commands
+- [Railway Variables Reference](https://docs.railway.com/reference/variables) — auto-injected vars, Seal feature
+- [Railway Bun Deployment Guide](https://docs.railway.com/guides/bun) — Dockerfile requirement, Railpack limitation
+- [Bun HTTP Server Docs](https://bun.com/docs/runtime/http/server) — Bun.serve defaults to 0.0.0.0
+- [Bun WebSocket Docs](https://bun.com/docs/runtime/http/websockets) — idleTimeout behaviour, pub/sub
+
+### Secondary (MEDIUM-HIGH confidence — community reports, filed bugs)
+- [Railway Help Station — WebSocket connection issues](https://station.railway.com/questions/web-socket-connection-issues-in-producti-ec8d4a69)
+- [Railway Help Station — Socket disconnects](https://station.railway.com/questions/socket-disconnects-after-10-minutes-bbceef40)
+- [WebKit bug #247943](https://bugs.webkit.org/show_bug.cgi?id=247943) — onclose not fired on iOS screen lock
+- [DeviceMotionEvent.requestPermission iOS 13+](https://dev.to/li/how-to-requestpermission-for-devicemotion-and-deviceorientation-events-in-ios-13-46g2)
+- [iOS touch-action 300ms delay](https://developer.chrome.com/blog/300ms-tap-delay-gone-away)
+- [Safari iOS 26 WebSocket upgrade bug](https://www.jackpearce.co.uk/posts/debugging-websocket-upgrade-failures-safari-ios26)
+
+### Verified by Code Inspection (overrides researcher speculation)
+- `src/lib/socket.ts` line 183 — `wss://` protocol already derived from `window.location.protocol`; no code change needed
+- `server/index.ts` — `Bun.serve()` has no `hostname` field; Bun defaults to `0.0.0.0`; no hostname fix needed
+- `server/index.ts` lines 71-73 — 30s heartbeat already implemented; sufficient for 60s proxy idle timeout
+- `railway.toml` + `server/index.ts` — `restartPolicyType = "on-failure"` and `process.env.PORT ?? 3000` both correct as-is
+
+---
+
+*Research completed: 2026-04-10*
+*Ready for roadmap: yes*
