@@ -24,7 +24,7 @@
       : null
   );
 
-  let screen = $derived<"waiting" | "minigame" | "scavenger" | "reward">(() => {
+  let screen = $derived.by<"waiting" | "minigame" | "scavenger" | "reward">(() => {
     if (!$gameState || $gameState.phase === "lobby" || activeChapter === null) return "waiting";
     if (!activeChapter.minigameDone) return "minigame";
     if (!activeChapter.scavengerDone) return "scavenger";
