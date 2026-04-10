@@ -72,4 +72,10 @@ setInterval(() => {
   server.publish("game", JSON.stringify({ type: "PING", ts: Date.now() }));
 }, 30_000);
 
+// Prevent unhandled exceptions from crashing the process and wiping in-memory game state
+// FIX-02 prerequisite — full handler deferred to Phase 7, this is the safety net
+process.on("uncaughtException", (err) => {
+  console.error("[octapp] Uncaught exception (process kept alive):", err);
+});
+
 console.log(`[octapp] Server running on port ${server.port}`);
