@@ -126,7 +126,7 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 05-01-PLAN.md — Server hardening (uncaughtException handler, railway.toml healthcheckTimeout + drainingSeconds) + git push to main
+- [x] 05-01-PLAN.md — Server hardening (uncaughtException handler, railway.toml healthcheckTimeout + drainingSeconds) + git push to main
 - [ ] 05-02-PLAN.md — Railway project setup: GitHub connect, ADMIN_TOKEN via Raw Editor, domain generation
 - [ ] 05-03-PLAN.md — Smoke test: health check, WebSocket 101 in DevTools, admin gate verified in production
 
@@ -156,6 +156,6 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 5. Railway Deploy & Smoke Test | 0/? | Not started | - |
+| 5. Railway Deploy & Smoke Test | 1/3 | In Progress|  |
 | 6. Three-Device Validation | 0/? | Not started | - |
 | 7. Mobile Bug Fixes | 0/? | Not started | - |

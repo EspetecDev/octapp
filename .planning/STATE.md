@@ -1,15 +1,15 @@
 ---
 gsd_state_version: 1.0
 milestone: v1.1
-milestone_name: Deployment & Testing
+milestone_name: — Deployment & Testing
 current_plan: 1
-status: Roadmap created
-last_updated: "2026-04-10T00:00:00Z"
+status: Executing Phase 05
+last_updated: "2026-04-10T14:25:54.376Z"
 progress:
-  total_phases: 3
-  completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
+  total_phases: 7
+  completed_phases: 4
+  total_plans: 22
+  completed_plans: 20
 ---
 
 # Project State
@@ -19,13 +19,13 @@ progress:
 See: `.planning/PROJECT.md` (updated 2026-04-07)
 
 **Core value:** The groom has a memorable, personalized gauntlet to run through his own bachelor party — driven by his friends, full of surprises.
-**Current focus:** Milestone v1.1 — Deployment & Testing
+**Current focus:** Phase 05 — railway-deploy-smoke-test
 
 ## Current Status
 
 **Stage:** Roadmap created — ready to plan Phase 5
 **Active phase:** None (planning not yet started)
-**Current Plan:** —
+**Current Plan:** 1
 **Last action:** v1.1 roadmap created (2026-04-10) — 3 phases (5, 6, 7) covering deploy, validation, bug fixes
 
 ## Phase Progress (v1.0 — complete)
@@ -96,11 +96,15 @@ See: `.planning/PROJECT.md` (updated 2026-04-07)
 - [Phase 04-group-economy-multiplayer]: EARN_TOKEN handler must be inside handleMessage() function body — bare return statements at module scope are illegal in ESM (Pitfall: placement bug)
 
 **v1.1 deployment notes (from research):**
+
 - ADMIN_TOKEN must be set via Railway Raw Editor to avoid trailing-whitespace bugs — verify in logs immediately after deploy
 - Health check (GET /health → 200) does NOT confirm WebSocket health — must check for 101 Switching Protocols in DevTools separately
 - wss:// protocol switching already correct in src/lib/socket.ts:183 — no code change needed
 - Bun.serve() already binds to 0.0.0.0 — no hostname fix needed
 - 30s heartbeat is sufficient for Railway's 60s idle timeout on custom domain
+- [Phase 05-01]: uncaughtException handler uses console.error only — no process.exit() — preserves in-memory game state on Railway
+- [Phase 05-01]: healthcheckTimeout set to 30 (not 10) — matches Railway cold start requirement (Pitfall 13)
+- [Phase 05-01]: No drainingSeconds or numReplicas — single replica required for in-memory game state
 
 ## Performance Metrics
 
@@ -122,6 +126,7 @@ See: `.planning/PROJECT.md` (updated 2026-04-07)
 | Phase 03-groom-experience P07 | 4 | 1 tasks | 1 files |
 | Phase 04-group-economy-multiplayer P03 | 15 | 2 tasks | 6 files |
 | Phase 04-group-economy-multiplayer P04-04 | 2 | 1 tasks | 1 files |
+| Phase 05-railway-deploy-smoke-test P01 | 1 | 2 tasks | 2 files |
 
 ## Next Step
 

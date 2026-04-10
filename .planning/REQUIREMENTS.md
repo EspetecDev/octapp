@@ -146,7 +146,7 @@
 
 ### Deployment
 
-- [ ] **DEPLOY-01**: App is deployed to Railway and accessible via a public URL
+- [x] **DEPLOY-01**: App is deployed to Railway and accessible via a public URL
 - [ ] **DEPLOY-02**: ADMIN_TOKEN env var is set; admin routes return 401 without it in production
 
 ### Validation
@@ -164,7 +164,7 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DEPLOY-01 | Phase 5 | Pending |
+| DEPLOY-01 | Phase 5 | Complete |
 | DEPLOY-02 | Phase 5 | Pending |
 | VALID-01 | Phase 6 | Pending |
 | VALID-02 | Phase 6 | Pending |
