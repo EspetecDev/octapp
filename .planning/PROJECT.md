@@ -38,7 +38,7 @@ The groom has a memorable, personalized gauntlet to run through his own bachelor
 
 ### Active
 
-- [ ] Railway deployment — live public URL, production env vars configured
+- [x] Railway deployment — live public URL, production env vars configured — Validated in Phase 05: Railway Deploy & Smoke Test
 - [ ] Multi-device validation — all roles (admin, groom, party) tested simultaneously on real devices
 - [ ] Bug fixes from real-device testing
 
