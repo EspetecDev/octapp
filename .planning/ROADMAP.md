@@ -135,12 +135,17 @@ Plans:
 **Depends on**: Phase 5
 **Requirements**: VALID-01, VALID-02, VALID-03
 **Success Criteria** (what must be TRUE):
-  1. Admin on PC, groom on iPhone, and a party member on Android all join the same session simultaneously; each sees the correct role view with no console errors
+  1. Admin on PC, groom on Android phone, and a party member on a second device all join the same session simultaneously; each sees the correct role view with no console errors
   2. Admin unlocks a chapter and all three devices display the chapter transition card within 2 seconds — verified by watching screens side by side
-  3. Groom taps the sensor minigame permission button on real iOS and the DeviceMotion permission dialog appears; after granting, the tilt meter responds to physical device movement
-  4. Groom locks iPhone for 15 seconds mid-challenge, unlocks it, and the game view restores automatically without a manual page reload
-**Plans**: TBD
+  3. Groom taps the sensor minigame "Enable Sensor" button on real Android; tilt meter responds to physical movement (iOS permission dialog deferred to Phase 7)
+  4. Groom locks Android phone for 15 seconds mid-challenge, unlocks it, and the game view restores automatically without a manual page reload
+**Plans**: 3 plans
 **UI hint**: yes
+
+Plans:
+- [ ] 06-01-PLAN.md — Admin session setup: configure 1 sensor chapter, confirm dashboard shows session code and Unlock Chapter is enabled
+- [ ] 06-02-PLAN.md — VALID-01 (all 3 devices join) + VALID-02 (chapter unlock recap card on all screens within 2s)
+- [ ] 06-03-PLAN.md — Android sensor tilt test (non-blocking) + lock-screen reconnect test (non-blocking); failures logged to Phase 7
 
 ### Phase 7: Mobile Bug Fixes
 **Goal**: The two known mobile bugs that can break or corrupt a live session are fixed and verified on real hardware.
@@ -157,5 +162,5 @@ Plans:
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 5. Railway Deploy & Smoke Test | 1/3 | In Progress|  |
-| 6. Three-Device Validation | 0/? | Not started | - |
+| 6. Three-Device Validation | 0/3 | Not started | - |
 | 7. Mobile Bug Fixes | 0/? | Not started | - |
