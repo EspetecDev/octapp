@@ -1,12 +1,21 @@
 <script lang="ts">
   import { onMount } from "svelte";
+  import { beforeNavigate } from "$app/navigation";
   import { gameState, lastEffect, getStoredPlayerId, sendMessage } from "$lib/socket.ts";
   import type { Player } from "$lib/types.ts";
   import type { EffectActivatedPayload } from "$lib/socket.ts";
 
+  // FIX-01: Block all navigation away from the game during an active session (D-01, D-02, D-03)
+  // beforeNavigate cancels SvelteKit client-side navigation
+  beforeNavigate(({ cancel }) => {
+    cancel();
+  });
+
   let myPlayerId = $state<string | null>(null);
 
   onMount(() => {
+    // Push dummy history entry so Android back button hits this entry first (FIX-01, D-02)
+    history.pushState(null, "", window.location.href);
     myPlayerId = getStoredPlayerId();
   });
 
