@@ -110,7 +110,7 @@ Plans:
 
 - [ ] **Phase 5: Railway Deploy & Smoke Test** - Deploy to Railway, configure ADMIN_TOKEN, confirm HTTPS and WebSocket 101 upgrade via DevTools
 - [ ] **Phase 6: Three-Device Validation** - Admin + Groom + Party join simultaneously; chapter unlock, sensor minigame, real-time sync all pass on real hardware
-- [ ] **Phase 7: Mobile Bug Fixes** - Android back button safety, server crash protection
+- [x] **Phase 7: Mobile Bug Fixes** - Android back button safety, server crash protection (completed 2026-04-13)
 
 ## Phase Details
 
@@ -159,7 +159,7 @@ Plans:
 
 Plans:
 - [x] 07-01-PLAN.md — FIX-01: back button guard on groom & party pages (beforeNavigate + history.pushState)
-- [ ] 07-02-PLAN.md — FIX-02: unhandledRejection server handler + /test-crash verification route
+- [x] 07-02-PLAN.md — FIX-02: unhandledRejection server handler + /test-crash verification route
 
 ## Progress
 
@@ -167,4 +167,4 @@ Plans:
 |-------|----------------|--------|-----------|
 | 5. Railway Deploy & Smoke Test | 1/3 | In Progress|  |
 | 6. Three-Device Validation | 0/3 | Not started | - |
-| 7. Mobile Bug Fixes | 1/2 | In Progress|  |
+| 7. Mobile Bug Fixes | 2/2 | Complete   | 2026-04-13 |

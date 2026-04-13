@@ -48,7 +48,7 @@ completed: 2026-04-13
 - **Duration:** ~3 min
 - **Started:** 2026-04-13T13:52:00Z
 - **Completed:** 2026-04-13T13:55:00Z
-- **Tasks:** 1/2 (Task 2 is checkpoint:human-verify — awaiting manual verification)
+- **Tasks:** 2/2 (Task 2 checkpoint:human-verify — approved by user 2026-04-13)
 - **Files modified:** 1
 
 ## Accomplishments
@@ -61,6 +61,7 @@ completed: 2026-04-13
 ## Task Commits
 
 1. **Task 1: Add unhandledRejection handler and /test-crash route to server** - `a75025b` (feat)
+2. **Task 2: Manual verification — server crash protection confirmed** - checkpoint approved (no code commit — human verified log line and /health OK)
 
 ## Files Created/Modified
 - `server/index.ts` — Added `unhandledRejection` handler after `uncaughtException` block + `/test-crash` route after `/health` route
@@ -78,14 +79,15 @@ None - plan executed exactly as written.
 
 None.
 
-## Checkpoint: Human Verification Required (Task 2)
+## Verification Result
 
-Task 2 is a `checkpoint:human-verify`. Manual verification steps:
+Task 2 checkpoint:human-verify was approved by user on 2026-04-13.
 
-1. Start server: `cd /Users/espetec/dev/octapp && ADMIN_TOKEN=test bun run server/index.ts`
-2. Hit test route: `curl http://localhost:3000/test-crash` — expect `Crash triggered — check logs` with HTTP 200
-3. Check server terminal for: `[octapp] Unhandled rejection (process kept alive): Error: [octapp] Test crash — verifying unhandledRejection handler`
-4. Confirm server alive: `curl http://localhost:3000/health` — expect `OK`
+User confirmed:
+- `curl http://localhost:3000/test-crash` returned HTTP 200
+- Server terminal showed `[octapp] Unhandled rejection (process kept alive):` log line
+- `curl http://localhost:3000/health` returned `OK` — server stayed alive after crash trigger
+- FIX-02 requirement fully satisfied
 
 ## Known Stubs
 
