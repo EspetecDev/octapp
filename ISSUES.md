@@ -1,2 +1,0 @@
-- [ ] another user can access the groom part and modify the game
-- [ ] 
