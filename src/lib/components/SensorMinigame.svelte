@@ -75,9 +75,9 @@
     const handler = (event: DeviceMotionEvent) => {
       if (resultState !== null) return;
       const reading = normalizeSensorData(event, platform);
-      // x ranges approx -9.8 to +9.8 (m/s² gravity)
-      // tilt-right = positive x; normalize to 0–1 clamped (D-08, D-09)
-      const normalized = Math.max(0, Math.min(1, (reading.x + 9.8) / 9.8));
+      // x ranges approx -9.8 to +9.8 (m/s² gravity); upright portrait = ~0
+      // divide by 19.6 (full range) so upright=0.5, full-right=1.0 (D-08, D-09)
+      const normalized = Math.max(0, Math.min(1, (reading.x + 9.8) / 19.6));
       meterFill = normalized;
       if (normalized >= 0.8) {
         // Win immediately when ≥80% (D-09)
