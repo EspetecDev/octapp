@@ -234,14 +234,14 @@
 
         <!-- Minigame type selector -->
         <div class="flex gap-2 mb-4">
-          {#each (["trivia", "sensor", "memory"] as const) as type}
+          {#each (["trivia", "memory"] as const) as type}
             <button
               onclick={() => updateChapterField(i, "minigameType", type)}
               class="min-h-[44px] px-4 rounded-lg {chapter.minigameType === type
                 ? 'border-2 border-accent-admin text-text-primary bg-surface'
                 : 'border border-border text-text-secondary'}"
             >
-              {type === "trivia" ? "Trivia" : type === "sensor" ? "Sensor" : "Memory"}
+              {type === "trivia" ? "Trivia" : "Memory"}
             </button>
           {/each}
         </div>

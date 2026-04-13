@@ -1,5 +1,5 @@
 import { createSession, getSession } from "./session.ts";
-import { broadcastState } from "./state.ts";
+import { getState, setState, broadcastState } from "./state.ts";
 import { handleOpen, handleMessage, handleClose, type WSData } from "./handlers.ts";
 
 const BUILD_DIR = new URL("../build", import.meta.url).pathname;
@@ -29,6 +29,28 @@ const server = Bun.serve<WSData>({
       }
       const state = getSession(sessionCode);
       return Response.json({ sessionCode: state?.sessionCode ?? sessionCode });
+    }
+
+    // --- Groom auto-join: anyone can land on /groom without going through the join form ---
+    if (url.pathname === "/api/groom/join" && req.method === "POST") {
+      const state = getState();
+      if (!state) {
+        return new Response("No active session", { status: 503 });
+      }
+      if (state.groomPlayerId !== null) {
+        return Response.json({ error: "Groom role already taken" }, { status: 409 });
+      }
+      const playerId = crypto.randomUUID();
+      setState((s) => ({
+        ...s,
+        players: [...s.players, { id: playerId, name: "Groom", role: "groom" as const, connected: false }],
+        groomPlayerId: playerId,
+      }));
+      const updatedState = getState();
+      if (updatedState) {
+        server.publish("game", JSON.stringify({ type: "STATE_SYNC", state: updatedState }));
+      }
+      return Response.json({ playerId, sessionCode: state.sessionCode });
     }
 
     // --- WebSocket upgrade ---

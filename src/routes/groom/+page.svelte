@@ -1,14 +1,12 @@
 <script lang="ts">
   import { onMount } from "svelte";
-  import { gameState, getStoredPlayerId, lastEffect } from "$lib/socket.ts";
-  import { sendMessage } from "$lib/socket.ts";
+  import { gameState, getStoredPlayerId, storePlayerSession, lastEffect, sendMessage } from "$lib/socket.ts";
   import type { EffectActivatedPayload } from "$lib/socket.ts";
   import { acquireWakeLock, releaseWakeLock } from "$lib/wakeLock.ts";
   import type { Player, Chapter } from "$lib/types.ts";
   // Component imports — implemented in Plans 03, 04, 05, 06
   // These files will be created by downstream plans; import them now for the router to work
   import TriviaMinigame from "$lib/components/TriviaMinigame.svelte";
-  import SensorMinigame from "$lib/components/SensorMinigame.svelte";
   import MemoryMinigame from "$lib/components/MemoryMinigame.svelte";
   import ScavengerScreen from "$lib/components/ScavengerScreen.svelte";
   import RewardScreen from "$lib/components/RewardScreen.svelte";
@@ -88,8 +86,24 @@
     $gameState?.players.find((p) => p.id === announcementData?.activatedBy)?.name?.toUpperCase() ?? ""
   );
 
-  onMount(() => {
-    myPlayerId = getStoredPlayerId();
+  onMount(async () => {
+    const storedId = getStoredPlayerId();
+    if (storedId) {
+      myPlayerId = storedId;
+      return;
+    }
+    // No stored session — auto-join as groom without going through the join form
+    try {
+      const res = await fetch("/api/groom/join", { method: "POST" });
+      if (res.ok) {
+        const { playerId, sessionCode } = await res.json() as { playerId: string; sessionCode: string };
+        storePlayerSession(playerId, sessionCode);
+        myPlayerId = playerId;
+        sendMessage({ type: "REJOIN", playerId, sessionCode });
+      }
+    } catch {
+      // ignore — page will show "Loading..." until connection is established
+    }
   });
 </script>
 
@@ -128,8 +142,6 @@
   {:else if screen === "minigame"}
     {#if activeChapter?.minigameType === "trivia"}
       <TriviaMinigame chapter={activeChapter} />
-    {:else if activeChapter?.minigameType === "sensor"}
-      <SensorMinigame chapter={activeChapter} />
     {:else if activeChapter?.minigameType === "memory"}
       <MemoryMinigame />
     {/if}
