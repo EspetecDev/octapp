@@ -1,15 +1,15 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.1
-milestone_name: — Deployment & Testing
+milestone: v1.2
+milestone_name: Load Preconfigured Games
 current_plan: 1
-status: v1.1 milestone complete
-last_updated: "2026-04-13T15:15:18.662Z"
+status: Defining requirements
+last_updated: "2026-04-13T00:00:00.000Z"
 progress:
-  total_phases: 7
-  completed_phases: 7
-  total_plans: 27
-  completed_plans: 27
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
 ---
 
 # Project State
@@ -19,14 +19,14 @@ progress:
 See: `.planning/PROJECT.md` (updated 2026-04-13)
 
 **Core value:** The groom has a memorable, personalized gauntlet to run through his own bachelor party — driven by his friends, full of surprises.
-**Current focus:** Project complete — v1.1 shipped 2026-04-13
+**Current focus:** v1.2 — Load Preconfigured Games (defining requirements)
 
 ## Current Status
 
-**Stage:** v1.1 milestone complete — project shipped
-**Active phase:** None
+**Stage:** Defining requirements for v1.2
+**Active phase:** None (roadmap not yet created)
 **Current Plan:** —
-**Last action:** v1.1 milestone archived 2026-04-13 — all 7 phases, 27 plans complete
+**Last action:** v1.2 milestone started 2026-04-13 — gathering requirements
 
 ## Phase Progress (v1.0 — complete)
 
@@ -35,11 +35,15 @@ See: `.planning/PROJECT.md` (updated 2026-04-13)
 - [x] Phase 3: Groom Experience (7/7 plans complete)
 - [x] Phase 4: Group Economy & Multiplayer (4/4 plans complete, verified 2026-04-09)
 
-## Phase Progress (v1.1 — current milestone)
+## Phase Progress (v1.1 — complete)
 
-- [ ] Phase 5: Railway Deploy & Smoke Test (0/? plans complete)
-- [ ] Phase 6: Three-Device Validation (0/? plans complete)
-- [ ] Phase 7: Mobile Bug Fixes (0/? plans complete)
+- [x] Phase 5: Railway Deploy & Smoke Test
+- [x] Phase 6: Three-Device Validation
+- [x] Phase 7: Mobile Bug Fixes
+
+## Phase Progress (v1.2 — current milestone)
+
+(Phases to be defined by roadmapper)
 
 ## Plan Progress — Phase 01
 

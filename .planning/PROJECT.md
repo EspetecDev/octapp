@@ -10,6 +10,15 @@ A smartphone-targeted interactive web game built for a bachelor party. The groom
 
 The groom has a memorable, personalized gauntlet to run through his own bachelor party — driven by his friends, full of surprises.
 
+## Current Milestone: v1.2 — Load Preconfigured Games
+
+**Goal:** Let admins export and import full game configs as JSON files so a setup can be saved, shared, and reused across events.
+
+**Target features:**
+- Export entire setup (chapters, trivia, scavenger clues, rewards, power-up catalog) as a downloadable JSON file
+- Import a JSON file to replace the current setup entirely
+- Export/Import controls on the existing /admin/setup page
+
 ## Current State: v1.1 Shipped (2026-04-13)
 
 - **Live URL:** https://octapp-production.up.railway.app
@@ -43,7 +52,8 @@ The groom has a memorable, personalized gauntlet to run through his own bachelor
 
 ### Active
 
-(None — project complete for this event)
+- Admin can export full game setup as a JSON file — v1.2
+- Admin can import a JSON file to replace current setup entirely — v1.2
 
 ### Out of Scope
 
@@ -89,7 +99,20 @@ The groom has a memorable, personalized gauntlet to run through his own bachelor
 
 ## Evolution
 
-This document was last updated at v1.1 milestone completion. Project is shipped and ready for the event.
+This document evolves at phase transitions and milestone boundaries.
+
+**After each phase transition** (via `/gsd:transition`):
+1. Requirements invalidated? → Move to Out of Scope with reason
+2. Requirements validated? → Move to Validated with phase reference
+3. New requirements emerged? → Add to Active
+4. Decisions to log? → Add to Key Decisions
+5. "What This Is" still accurate? → Update if drifted
+
+**After each milestone** (via `/gsd:complete-milestone`):
+1. Full review of all sections
+2. Core Value check — still the right priority?
+3. Audit Out of Scope — reasons still valid?
+4. Update Context with current state
 
 ---
-*Last updated: 2026-04-13 after v1.1 milestone — project complete*
+*Last updated: 2026-04-13 — v1.2 milestone started*
