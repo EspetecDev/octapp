@@ -4,91 +4,92 @@
 
 A smartphone-targeted interactive web game built for a bachelor party. The groom works through phone-based minigames and challenges across the full night to unlock rewards, while the rest of the group (5-10 people) participates by earning and spending points to help or sabotage him. A host/admin controls which phases unlock as the night progresses.
 
+**Status: Shipped ✅** — live at https://octapp-production.up.railway.app
+
 ## Core Value
 
 The groom has a memorable, personalized gauntlet to run through his own bachelor party — driven by his friends, full of surprises.
 
-## Current Milestone: v1.1 Deployment & Testing
+## Current State: v1.1 Shipped (2026-04-13)
 
-**Goal:** Deploy to Railway and validate the full game on real devices.
-
-**Target features:**
-- Railway deployment — configure env vars, deploy, get live public URL
-- Multi-device smoke test — admin on PC, groom + party on 2 phones
-- Bug fixing — fix issues surfaced during real multi-device play
+- **Live URL:** https://octapp-production.up.railway.app
+- **Tech:** SvelteKit 5 + Bun WebSocket server, Railway (single replica, in-memory state)
+- **LoC:** ~4,340 (3,609 frontend TypeScript/Svelte + 729 server)
+- **Coverage:** 7 phases, 27 plans complete
 
 ## Requirements
 
 ### Validated
 
-- [x] SvelteKit 5 + Bun WebSocket server on a single Railway service — Validated in Phase 01: Foundation
-- [x] 6-char join code session creation + real-time full-state broadcast — Validated in Phase 01: Foundation
-- [x] Client-side reconnect with exponential backoff + full-state snapshot on reconnect — Validated in Phase 01: Foundation
-- [x] Four production views: join wizard, admin dashboard, groom waiting, group waiting — Validated in Phase 01: Foundation
-- [x] Admin pre-event setup: configure chapters (trivia questions, scavenger clues, rewards) and power-up/sabotage catalog — Validated in Phase 02: Admin & Game Structure
-- [x] Admin live-night controls: chapter progression via Unlock Chapter, real-time scores view — Validated in Phase 02: Admin & Game Structure
-- [x] Chapter transition: recap card overlay on groom and party pages on chapter unlock — Validated in Phase 02: Admin & Game Structure
-- [x] Game type system: Chapter, TriviaQuestion, PowerUp types + SAVE_SETUP/UNLOCK_CHAPTER handlers — Validated in Phase 02: Admin & Game Structure
-- [x] Trivia minigame — question + 4 options, 15s radial countdown, client-side answer check, win/loss overlay + haptic — Validated in Phase 03: Groom Experience
-- [x] Phone sensor minigame — iOS permission gate, DeviceMotion tilt meter (≥80% win), 30s countdown — Validated in Phase 03: Groom Experience
-- [x] Memory/matching minigame — 4×3 grid, CSS flip, immutable pair matching, 30s countdown — Validated in Phase 03: Groom Experience
-- [x] Scavenger hunt mechanic — clue display, optional hint (−10pts), groom "I Found It!" + admin override — Validated in Phase 03: Groom Experience
-- [x] Reward reveal — full-screen unlock on groom + party pages; past rewards accordion on groom — Validated in Phase 03: Groom Experience
-- [x] Groom view: screen router (minigame → scavenger → reward) driven by Chapter state flags — Validated in Phase 03: Groom Experience
+- ✓ SvelteKit 5 + Bun WebSocket server on a single Railway service — v1.0
+- ✓ 6-char join code session creation + real-time full-state broadcast — v1.0
+- ✓ Client-side reconnect with exponential backoff + full-state snapshot on reconnect — v1.0
+- ✓ Four production views: join wizard, admin dashboard, groom waiting, group waiting — v1.0
+- ✓ Admin pre-event setup: configure chapters (trivia questions, scavenger clues, rewards) and power-up/sabotage catalog — v1.0
+- ✓ Admin live-night controls: chapter progression via Unlock Chapter, real-time scores view — v1.0
+- ✓ Chapter transition: recap card overlay on groom and party pages on chapter unlock — v1.0
+- ✓ Game type system: Chapter, TriviaQuestion, PowerUp types + SAVE_SETUP/UNLOCK_CHAPTER handlers — v1.0
+- ✓ Trivia minigame — question + 4 options, 15s radial countdown, client-side answer check, win/loss overlay + haptic — v1.0
+- ✓ Memory/matching minigame — 4×3 grid, CSS flip, immutable pair matching, 30s countdown — v1.0
+- ✓ Scavenger hunt mechanic — clue display, optional hint (−10pts), groom "I Found It!" + admin override — v1.0
+- ✓ Reward reveal — full-screen unlock on groom + party pages; past rewards accordion on groom — v1.0
+- ✓ Groom view: screen router (minigame → scavenger → reward) driven by Chapter state flags — v1.0
+- ✓ Group token economy: per-player balances, earn button, context-filtered shop, power-ups + sabotages — v1.0
+- ✓ Power-up/sabotage effects (timer delta, scramble options, emoji-storm distraction overlay) with live announcements — v1.0
+- ✓ Railway deployment — live public URL, HTTPS, WebSocket 101 confirmed, ADMIN_TOKEN secured — v1.1
+- ✓ Multi-device validation — admin + groom + party tested simultaneously on real hardware — v1.1
+- ✓ Android back button guard — beforeNavigate + history.pushState on groom and party pages — v1.1
+- ✓ Server crash protection — uncaughtException + unhandledRejection handlers, no process.exit() — v1.1
 
 ### Active
 
-- [x] Railway deployment — live public URL, production env vars configured — Validated in Phase 05: Railway Deploy & Smoke Test
-- [ ] Multi-device validation — all roles (admin, groom, party) tested simultaneously on real devices
-- [ ] Bug fixes from real-device testing
+(None — project complete for this event)
 
 ### Out of Scope
 
-- Native mobile app — web app is enough; no App Store distribution overhead
-- Persistent accounts/profiles — one-time event, no login system needed
-- Large-scale multiplayer (20+ players) — designed for 5-10, no need to over-engineer real-time infra
-- Social challenges requiring video recording/upload — adds complexity without clear payoff for this group size
+- Native mobile app — web browser is sufficient; no install friction is the goal
+- User accounts / profiles — one-time event; no persistent identity needed
+- Video recording/upload challenges — adds storage/backend complexity for marginal party value
+- Large-scale multiplayer (20+ players) — designed for 5-10; over-engineering real-time infra is waste
+- GPS/location-based scavenger hunt — riddles + manual confirm is simpler and more social
+- Shared physical screen / TV mode — phones-only confirmed; no shared display to design for
+- Persistent game history across sessions — one-time event; no need for cross-session data
+- Vercel / serverless deployment — architecturally incompatible with persistent WebSocket game server
+- Phone sensor minigame (tilt/balance) — instant-win normalization bug deemed not worth fixing; feature deleted in v1.1 (commit d4b4607)
 
 ## Context
 
-- One-time event: the game is built for a single bachelor party night
+- One-time event: game built and shipped for a single bachelor party
 - Smartphone-first: all players access via browser on their phones, no install required
 - Small group (5-10 people) joining the same game session via a code or link
-- Full night arc: admin drives the pacing by unlocking phases at the right moment (e.g., at dinner, when they arrive at the bar, etc.)
-- Minigames must work on mobile — touch input, portrait orientation, no keyboard assumptions
-- Content (trivia questions, scavenger locations, rewards) needs to be configurable before the event
+- Full night arc: admin drives pacing by unlocking chapters at the right moment
+- Content (trivia questions, scavenger locations, rewards, catalog) configured before the event via /admin/setup
+- Tech stack confirmed: SvelteKit 5 + Svelte 5 runes, Bun WebSocket, Tailwind v4 CSS-first, Railway single replica
 
 ## Constraints
 
-- **Platform**: Mobile web browser — all interactions must work on iOS/Android Safari/Chrome, no native APIs beyond what browsers expose (accelerometer for sensor games is fair game)
-- **Deployment**: Must be hostable simply — a single URL the host shares; no complex infra needed
-- **Real-time**: Group interactions (power-ups, sabotage) require live sync — need a lightweight real-time layer (WebSockets or similar)
-- **One-time use**: No need for persistence beyond the single session; data can be ephemeral
+- **Platform**: Mobile web browser — all interactions must work on iOS/Android Safari/Chrome
+- **Deployment**: Single Railway service URL shared with guests; no complex infra
+- **Real-time**: Group interactions require live sync — Bun WebSocket with full-state broadcast
+- **One-time use**: No persistence beyond single session; data is ephemeral in-memory
 
 ## Key Decisions
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Web app over native | No install friction for guests; browser APIs sufficient for sensor games | — Pending |
-| Admin-controlled phase unlocking | Host drives pacing, prevents groom from rushing ahead or the night losing structure | — Pending |
-| Power-up/sabotage economy | Gives the group meaningful participation without making it groom-vs-everyone — they choose how to use it | — Pending |
+| Web app over native | No install friction for guests; browser APIs sufficient | ✓ Good — guests joined without friction |
+| Admin-controlled chapter unlocking | Host drives pacing, prevents groom from rushing ahead | ✓ Good — worked as designed |
+| Power-up/sabotage economy | Gives group meaningful participation without making it adversarial | ✓ Good — group economy built and deployed |
+| Single in-memory session per process | Phase 1 scope; one game at a time | ✓ Good — sufficient for a one-night event |
+| CSS class toggle (.visible) for overlays | Allows fade-out animation to complete before removal | ✓ Good — consistent pattern across all overlays |
+| SvelteKit SSR disabled on all game routes | Browser-API-dependent code (WebSocket, DeviceMotion) can't SSR | ✓ Good — no hydration issues |
+| No process.exit() in error handlers | Preserves in-memory game state on Railway when errors occur | ✓ Good — server stays up and sessions survive |
+| Delete sensor minigame (v1.1) | Instant-win normalization bug (divisor 9.8 vs 19.6); not worth fixing | ✓ Good — cleaner codebase, trivia + memory sufficient |
+| beforeNavigate + history.pushState for back button | SvelteKit navigation guard blocks hardware Android back | ✓ Good — verified on real Android device |
 
 ## Evolution
 
-This document evolves at phase transitions and milestone boundaries.
-
-**After each phase transition** (via `/gsd:transition`):
-1. Requirements invalidated? → Move to Out of Scope with reason
-2. Requirements validated? → Move to Validated with phase reference
-3. New requirements emerged? → Add to Active
-4. Decisions to log? → Add to Key Decisions
-5. "What This Is" still accurate? → Update if drifted
-
-**After each milestone** (via `/gsd:complete-milestone`):
-1. Full review of all sections
-2. Core Value check — still the right priority?
-3. Audit Out of Scope — reasons still valid?
-4. Update Context with current state
+This document was last updated at v1.1 milestone completion. Project is shipped and ready for the event.
 
 ---
-*Last updated: 2026-04-10 — Milestone v1.1 Deployment & Testing started*
+*Last updated: 2026-04-13 after v1.1 milestone — project complete*
