@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: — Deployment & Testing
-current_plan: Not started
-status: Ready to plan
-last_updated: "2026-04-13T13:20:02.757Z"
+current_plan: 1
+status: Executing Phase 07
+last_updated: "2026-04-13T13:42:49.663Z"
 progress:
   total_phases: 7
   completed_phases: 6
-  total_plans: 25
-  completed_plans: 25
+  total_plans: 27
+  completed_plans: 26
 ---
 
 # Project State
@@ -19,13 +19,13 @@ progress:
 See: `.planning/PROJECT.md` (updated 2026-04-07)
 
 **Core value:** The groom has a memorable, personalized gauntlet to run through his own bachelor party — driven by his friends, full of surprises.
-**Current focus:** Phase 06 — three-device-validation
+**Current focus:** Phase 07 — mobile-bug-fixes
 
 ## Current Status
 
 **Stage:** Roadmap created — ready to plan Phase 5
 **Active phase:** None (planning not yet started)
-**Current Plan:** Not started
+**Current Plan:** 1
 **Last action:** v1.1 roadmap created (2026-04-10) — 3 phases (5, 6, 7) covering deploy, validation, bug fixes
 
 ## Phase Progress (v1.0 — complete)
@@ -105,6 +105,8 @@ See: `.planning/PROJECT.md` (updated 2026-04-07)
 - [Phase 05-01]: uncaughtException handler uses console.error only — no process.exit() — preserves in-memory game state on Railway
 - [Phase 05-01]: healthcheckTimeout set to 30 (not 10) — matches Railway cold start requirement (Pitfall 13)
 - [Phase 05-01]: No drainingSeconds or numReplicas — single replica required for in-memory game state
+- [Phase 07-01]: beforeNavigate placed at module level (not onMount) — runs on component init for immediate guard
+- [Phase 07-01]: history.pushState as first line of onMount — dummy entry exists before any navigation attempt (FIX-01, D-02)
 
 ## Performance Metrics
 
@@ -127,6 +129,7 @@ See: `.planning/PROJECT.md` (updated 2026-04-07)
 | Phase 04-group-economy-multiplayer P03 | 15 | 2 tasks | 6 files |
 | Phase 04-group-economy-multiplayer P04-04 | 2 | 1 tasks | 1 files |
 | Phase 05-railway-deploy-smoke-test P01 | 1 | 2 tasks | 2 files |
+| Phase 07-mobile-bug-fixes P07-01 | 2 | 2 tasks | 2 files |
 
 ## Next Step
 

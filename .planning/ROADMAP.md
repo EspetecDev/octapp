@@ -158,7 +158,7 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 07-01-PLAN.md — FIX-01: back button guard on groom & party pages (beforeNavigate + history.pushState)
+- [x] 07-01-PLAN.md — FIX-01: back button guard on groom & party pages (beforeNavigate + history.pushState)
 - [ ] 07-02-PLAN.md — FIX-02: unhandledRejection server handler + /test-crash verification route
 
 ## Progress
@@ -167,4 +167,4 @@ Plans:
 |-------|----------------|--------|-----------|
 | 5. Railway Deploy & Smoke Test | 1/3 | In Progress|  |
 | 6. Three-Device Validation | 0/3 | Not started | - |
-| 7. Mobile Bug Fixes | 0/? | Not started | - |
+| 7. Mobile Bug Fixes | 1/2 | In Progress|  |
