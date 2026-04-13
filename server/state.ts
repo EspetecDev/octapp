@@ -15,7 +15,7 @@ export type TriviaQuestion = {
 
 export type Chapter = {
   name: string;
-  minigameType: "trivia" | "sensor" | "memory";
+  minigameType: "trivia" | "memory";
   triviaPool: TriviaQuestion[];
   scavengerClue: string;
   scavengerHint?: string;
