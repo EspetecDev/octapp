@@ -158,7 +158,7 @@
 ### Bug Fixes
 
 - [ ] **FIX-01**: Android back button does not navigate away from the game during an active session
-- [ ] **FIX-02**: Server uncaughtException handler logs errors and keeps the process alive (no session wipe on unhandled error)
+- [x] **FIX-02**: Server uncaughtException handler logs errors and keeps the process alive (no session wipe on unhandled error)
 
 ## v1.1 Traceability
 
@@ -170,7 +170,7 @@
 | VALID-02 | Phase 6 | Pending |
 | VALID-03 | Phase 6 | Pending |
 | FIX-01 | Phase 7 | Pending |
-| FIX-02 | Phase 7 | Pending |
+| FIX-02 | Phase 7 | Complete |
 
 **v1.1 Coverage:**
 - v1.1 requirements: 7 total

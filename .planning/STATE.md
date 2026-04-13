@@ -4,12 +4,12 @@ milestone: v1.1
 milestone_name: — Deployment & Testing
 current_plan: 1
 status: Executing Phase 05
-last_updated: "2026-04-10T14:25:54.376Z"
+last_updated: "2026-04-13T13:45:09.635Z"
 progress:
   total_phases: 7
   completed_phases: 4
   total_plans: 22
-  completed_plans: 20
+  completed_plans: 21
 ---
 
 # Project State
@@ -105,6 +105,7 @@ See: `.planning/PROJECT.md` (updated 2026-04-07)
 - [Phase 05-01]: uncaughtException handler uses console.error only — no process.exit() — preserves in-memory game state on Railway
 - [Phase 05-01]: healthcheckTimeout set to 30 (not 10) — matches Railway cold start requirement (Pitfall 13)
 - [Phase 05-01]: No drainingSeconds or numReplicas — single replica required for in-memory game state
+- [Phase 07-02]: unhandledRejection handler uses console.error only — no process.exit() to preserve in-memory game state
 
 ## Performance Metrics
 
@@ -127,6 +128,7 @@ See: `.planning/PROJECT.md` (updated 2026-04-07)
 | Phase 04-group-economy-multiplayer P03 | 15 | 2 tasks | 6 files |
 | Phase 04-group-economy-multiplayer P04-04 | 2 | 1 tasks | 1 files |
 | Phase 05-railway-deploy-smoke-test P01 | 1 | 2 tasks | 2 files |
+| Phase 07-mobile-bug-fixes P07-02 | 3 | 1 tasks | 1 files |
 
 ## Next Step
 
