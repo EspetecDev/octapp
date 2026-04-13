@@ -21,6 +21,14 @@ const server = Bun.serve<WSData>({
       return new Response("OK", { status: 200 });
     }
 
+    // FIX-02 verification route — triggers an unhandled rejection to confirm the handler fires
+    // Can be removed after manual verification; safe to leave in (no side effects when not called)
+    if (url.pathname === "/test-crash") {
+      // Fire-and-forget rejected promise — not awaited, so it becomes an unhandledRejection
+      Promise.reject(new Error("[octapp] Test crash — verifying unhandledRejection handler"));
+      return new Response("Crash triggered — check logs", { status: 200 });
+    }
+
     // --- Admin token gate (SESS-05) ---
     if (url.pathname === "/api/admin/session") {
       const token = url.searchParams.get("token") ?? req.headers.get("x-admin-token");
@@ -98,6 +106,11 @@ setInterval(() => {
 // FIX-02 prerequisite — full handler deferred to Phase 7, this is the safety net
 process.on("uncaughtException", (err) => {
   console.error("[octapp] Uncaught exception (process kept alive):", err);
+});
+
+// FIX-02: Also handle unhandled Promise rejections — the other common async crash vector (D-04, D-05, D-06)
+process.on("unhandledRejection", (reason: unknown, _promise: Promise<unknown>) => {
+  console.error("[octapp] Unhandled rejection (process kept alive):", reason);
 });
 
 console.log(`[octapp] Server running on port ${server.port}`);
