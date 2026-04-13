@@ -155,7 +155,11 @@ Plans:
   1. Pressing the Android hardware back button during an active session does not navigate away from the game — the session stays on screen
   2. A server-side unhandled error (simulated in testing) is logged to Railway logs and the server process keeps running — existing sessions are not wiped
   3. After the fix, a fresh three-device join confirms no regressions from either change
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+- [ ] 07-01-PLAN.md — FIX-01: back button guard on groom & party pages (beforeNavigate + history.pushState)
+- [ ] 07-02-PLAN.md — FIX-02: unhandledRejection server handler + /test-crash verification route
 
 ## Progress
 
