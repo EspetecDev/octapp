@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from "svelte";
+  import { beforeNavigate } from "$app/navigation";
   import { gameState, getStoredPlayerId, storePlayerSession, lastEffect, sendMessage } from "$lib/socket.ts";
   import type { EffectActivatedPayload } from "$lib/socket.ts";
   import { acquireWakeLock, releaseWakeLock } from "$lib/wakeLock.ts";
@@ -10,6 +11,12 @@
   import MemoryMinigame from "$lib/components/MemoryMinigame.svelte";
   import ScavengerScreen from "$lib/components/ScavengerScreen.svelte";
   import RewardScreen from "$lib/components/RewardScreen.svelte";
+
+  // FIX-01: Block all navigation away from the game during an active session (D-01, D-02, D-03)
+  // beforeNavigate cancels SvelteKit client-side navigation
+  beforeNavigate(({ cancel }) => {
+    cancel();
+  });
 
   let myPlayerId = $state<string | null>(null);
   let myPlayer = $derived<Player | null>(
@@ -87,6 +94,8 @@
   );
 
   onMount(async () => {
+    // Push dummy history entry so Android back button hits this entry first (FIX-01, D-02)
+    history.pushState(null, "", window.location.href);
     const storedId = getStoredPlayerId();
     if (storedId) {
       myPlayerId = storedId;
