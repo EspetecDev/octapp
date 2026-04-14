@@ -34,7 +34,10 @@ All 7 phases complete. Full phase details, plans, and requirements in the milest
   2. `serializeConfig(chapters, powerUpCatalog, startingTokens)` returns a `GameConfig` object with runtime fields stripped
   3. `validateConfig(data: unknown)` returns a typed result for valid input and a descriptive error string for invalid input (missing required fields, wrong types)
   4. `GameConfig` is re-exported from `src/lib/types.ts` so downstream code imports from one place
-**Plans**: TBD
+**Plans**: 1 plan
+
+Plans:
+- [ ] 08-01-PLAN.md — GameConfig type + serializeConfig + validateConfig + types.ts re-export
 
 ### Phase 9: Export
 **Goal**: Admin can download the current game setup as a JSON file from /admin/setup, and the download works on both desktop and iOS Safari
@@ -71,6 +74,6 @@ All 7 phases complete. Full phase details, plans, and requirements in the milest
 | 5. Railway Deploy & Smoke Test | v1.1 | 4/4 | Complete | 2026-04-13 |
 | 6. Three-Device Validation | v1.1 | 4/4 | Complete | 2026-04-13 |
 | 7. Mobile Bug Fixes | v1.1 | 4/4 | Complete | 2026-04-13 |
-| 8. Config Serializer | v1.2 | 0/? | Not started | - |
+| 8. Config Serializer | v1.2 | 0/1 | Not started | - |
 | 9. Export | v1.2 | 0/? | Not started | - |
 | 10. Import + E2E Verification | v1.2 | 0/? | Not started | - |
