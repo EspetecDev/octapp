@@ -33,6 +33,8 @@ export type PowerUp = {
   effectType: "timer_add" | "timer_reduce" | "scramble_options" | "distraction" | string;
 };
 
+export type { GameConfig } from "$lib/configSerializer";
+
 export type GameState = {
   sessionCode: string;
   phase: "lobby" | "active" | "ended";
