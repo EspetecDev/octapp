@@ -1,271 +1,328 @@
-# Domain Pitfalls: Bun WebSocket + SvelteKit on Railway, Mobile Testing
+# Domain Pitfalls: JSON Import/Export on SvelteKit 5 + Bun WebSocket
 
-**Domain:** Real-time multiplayer web game — SvelteKit static adapter + Bun WebSocket server, Railway deployment, iOS/Android mobile browsers
-**Researched:** 2026-04-10
-**Confidence:** HIGH for Railway proxy behaviour and iOS Safari known bugs; MEDIUM for Android-specific timing; HIGH for env var and Dockerfile analysis (from direct code inspection)
+**Domain:** Adding JSON config import/export to an existing SvelteKit 5 admin UI backed by a Bun WebSocket server with in-memory game state
+**Researched:** 2026-04-13
+**Confidence:** HIGH for iOS/Android file picker behaviour (confirmed via WebKit bug tracker and MDN); HIGH for state overwrite/sync issues (from direct code inspection of handlers.ts and state.ts); MEDIUM for Svelte 5 runes edge cases (from official Svelte docs + community reports)
 
 ---
 
 ## Critical Pitfalls
 
-Mistakes that cause the game to be silently broken with no obvious error.
+Mistakes that cause silent data loss, corrupt game state, or a broken admin UI on mobile.
 
 ---
 
-### Pitfall 1: Railway's `*.up.railway.app` Domain Drops WebSocket Connections at ~30s
+### Pitfall 1: iOS Safari Ignores `<a download>` on Blob URLs — Export Silently Opens Instead of Downloading
 
-**Symptom:** WebSocket connects fine, game works for 20-30 seconds, then all clients silently disconnect. Reconnect loop begins. Health check still passes. Railway logs show nothing wrong.
+**What goes wrong:**
+The standard export pattern — `URL.createObjectURL(blob)`, create a hidden `<a download="game.json">`, programmatically `.click()` it — works on desktop Chrome and Firefox. On iOS Safari (all versions before Safari 26), the browser silently navigates to the blob URL and displays the JSON as raw text instead of triggering a file download. The admin sees a wall of JSON in the browser, the page navigates away, and there is no file saved.
 
-**Cause:** Railway's edge proxy terminates long-lived connections on the shared `*.up.railway.app` domain for scaling reasons. This is a documented Railway limitation, not a bug in the server code. The proxy drops idle WebSocket frames that haven't had traffic in ~30 seconds.
+**Why it happens:**
+iOS Safari has never fully supported the `download` attribute on anchor elements for blob URLs. WebKit bug #216918 (open since 2021) explicitly tracks this: "WKWebView does not support `blob:` URLs as `href` value in anchors with `download` attribute." The restriction applies to Safari on iOS regardless of iOS version (confirmed still present in 2025).
 
-**Current status:** The server already publishes a heartbeat PING every 30 seconds (`setInterval` in `server/index.ts`). However, 30s may be at the boundary — if the PING arrives at 30.1s the proxy may have already terminated the connection. The `*.up.railway.app` domain compounds this.
+**How to avoid:**
+Do not rely on the standard `<a download>` + blob pattern alone. Use one of these approaches:
 
-**Prevention:**
-- Use a custom domain on Railway (the proxy behaviour is more permissive on custom domains than on `*.up.railway.app`). Railway staff explicitly recommend this for WebSocket apps.
-- Reduce server heartbeat interval from 30s to 20s to give a 10s safety margin against the proxy timeout.
-- The client already has a 35s missed-heartbeat detector, which is correct — keep it.
-
-**Detection:** Open Railway logs during the game. If you see no WebSocket traffic after ~30s but the health check keeps returning 200, you are hitting this.
-
-**Phase that must address this:** Railway deployment phase — set up custom domain before multi-device testing begins.
-
----
-
-### Pitfall 2: iOS Safari Kills WebSocket Without Firing `onclose` When Screen Locks or App Backgrounds
-
-**Symptom:** A player's phone screen locks mid-game. The server still shows them as `connected: true`. The client never sees `onclose`, so the reconnect loop never triggers. The player returns to find a stale game state and their score/tokens no longer updating.
-
-**Cause:** iOS aggressively suspends TCP connections when the screen locks or the browser tabs. WebKit has a documented bug (WebKit bug #247943) where `onclose` is not fired when the OS kills the connection. The connection appears alive on both ends but is dead.
-
-**Current mitigation in code:** The client has a 35-second heartbeat watchdog (`HEARTBEAT_TIMEOUT_MS = 35_000`). If no PING arrives in 35s, the client treats itself as disconnected and forces a reconnect. This is the correct defence.
-
-**Remaining risk:** If the server heartbeat fires at 30s and the client timer is 35s, there's a 5s window. If the iOS device backgrounds at 31s and the next heartbeat would be at 60s, the watchdog won't fire for 35 more seconds. Combined: up to ~65 seconds of stale state before the client notices. For a party game this is acceptable but worth knowing.
-
-**Prevention:**
-- Keep the server heartbeat at ≤20s (see Pitfall 1) which also tightens this window to ≤55s.
-- The `visibilitychange` event on the client can be used to force a reconnect check when the user returns to the tab — not currently implemented. Consider adding this in the bug-fix phase.
-- Do NOT increase `HEARTBEAT_TIMEOUT_MS` above 35s.
-
-**Phase that must address this:** Bug-fix phase after real-device testing. Likely surfaces during testing.
-
----
-
-### Pitfall 3: `ADMIN_TOKEN` Not Set in Railway Variables — Admin Endpoint Returns 401 Silently
-
-**Symptom:** Admin navigates to the app, enters the token or hits `/api/admin/session`, gets a 401. If no feedback is shown to the user, it looks like a network error or blank page. Token value in Railway is missing or has a trailing space.
-
-**Cause:** `server/index.ts` logs `"(not set)"` if `ADMIN_TOKEN` is undefined — but that log is only visible in Railway's service logs, not in the browser. Railway's Variables UI does not strip trailing whitespace from values pasted into the UI, so `ADMIN_TOKEN=secret ` (with trailing space) never matches `token === process.env.ADMIN_TOKEN`.
-
-**Prevention:**
-- In Railway Variables, use the Raw Editor (paste `KEY=VALUE` with no surrounding whitespace) rather than the per-key input which can silently include clipboard whitespace.
-- On first deploy, immediately check Railway logs for the `[octapp] Admin token: (not set)` line. If seen, the variable was not applied.
-- Redeploy (not restart) after adding variables — Railway injects env vars at build/start time, and a restart may not pick up new variables in all cases.
-
-**Phase that must address this:** Railway deployment phase, first task.
-
----
-
-### Pitfall 4: `PORT` Not Bound to `0.0.0.0` — Railway Proxy Cannot Reach the Server
-
-**Symptom:** Railway health check times out. Deploy succeeds but the service URL returns "Connection refused" or times out. Logs show the server started on `port 3000` but Railway still reports unhealthy.
-
-**Cause:** Bun's `Bun.serve()` defaults to `localhost` (127.0.0.1) when no `hostname` is specified. Railway's proxy reaches the container via an external interface, not loopback. The server must listen on `0.0.0.0`.
-
-**Current code:** `server/index.ts` does not set `hostname`. This is a real gap.
-
+Option A — Open in a new tab (simplest, works on all mobile browsers):
 ```typescript
-// Current — binds to 127.0.0.1 by default
-const server = Bun.serve<WSData>({
-  port: Number(process.env.PORT ?? 3000),
-  ...
-});
-
-// Required for Railway
-const server = Bun.serve<WSData>({
-  port: Number(process.env.PORT ?? 3000),
-  hostname: "0.0.0.0",
-  ...
-});
+const blob = new Blob([JSON.stringify(config, null, 2)], { type: "application/json" });
+const url = URL.createObjectURL(blob);
+window.open(url, "_blank");
+// User manually saves from the browser's share sheet
+URL.revokeObjectURL(url);
 ```
 
-**Prevention:** Add `hostname: "0.0.0.0"` to `Bun.serve()` before first deploy. This is the single most common Bun-on-Railway failure mode.
-
-**Phase that must address this:** Railway deployment phase, before first deploy attempt. This is a deploy blocker.
-
----
-
-### Pitfall 5: Health Check Passes While WebSocket Endpoint Is Broken
-
-**Symptom:** Railway dashboard shows the service as healthy (green). The app loads in the browser. But `/ws` upgrade requests return 400 ("WebSocket upgrade failed") or are silently dropped. No Railway alert fires.
-
-**Cause:** Railway's health check calls `GET /health` and checks for HTTP 200. The health check has no knowledge of WebSocket state. The server could have a bug in the WebSocket upgrade path (e.g., a Bun version incompatibility, a crash in `handleOpen`, or a missing `ws.subscribe("game")` call) while `/health` continues returning 200. The health check gives false confidence.
-
-**Known Bun WebSocket issue:** Bun has reported issues where WebSocket upgrade can silently fail if the `fetch` handler returns `undefined` instead of `undefined` from the upgrade path — the current code returns `undefined` on successful upgrade which is correct, but this is worth verifying in the Bun version used in the Docker image.
-
-**Prevention:**
-- After deploy, manually test the WebSocket endpoint: open browser DevTools > Network > WS tab, navigate to the app, and confirm `/ws` shows a 101 Switching Protocols response.
-- Add a second smoke-test: open the admin panel, verify the session code appears, then open a second tab and join as a player — if the player list updates in the admin view, WebSockets are working end-to-end.
-- Do not rely on Railway's health check as proof that WebSockets work.
-
-**Phase that must address this:** Multi-device validation phase — the explicit smoke-test sequence must include WebSocket confirmation, not just page load.
-
----
-
-### Pitfall 6: `wss://` vs `ws://` — HTTPS Page Cannot Connect to Insecure WebSocket
-
-**Symptom:** Browser console shows: `Mixed Content: The page was loaded over HTTPS, but attempted to connect to the insecure WebSocket endpoint 'ws://...'`. WebSocket connection is blocked. App silently stays in "reconnecting" state.
-
-**Cause:** All Railway deployments are served over HTTPS. Browsers enforce that HTTPS pages cannot initiate `ws://` (insecure) WebSocket connections — only `wss://`. The client code in `socket.ts` already derives protocol correctly:
-
+Option B — Detect iOS and show instructions ("Tap the share icon > Save to Files"):
 ```typescript
-const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
+const isIOS = /iP(hone|ad)/.test(navigator.userAgent);
+if (isIOS) {
+  // show modal with instructions to use share sheet
+} else {
+  // standard anchor click download
+}
 ```
 
-This logic is correct. The risk is a developer hardcoding `ws://` in a `.env.local` override and not noticing the same code runs in production — or a future refactor that breaks the derivation.
+Option C — Use a server-side download endpoint (`/api/admin/export-config?token=...`) that responds with `Content-Disposition: attachment; filename="game.json"`. HTTP download headers work on iOS Safari where blob URLs do not.
 
-**Prevention:** Never hardcode `ws://` anywhere. Confirm the derivation logic runs on every connect (not just first connect). The current implementation is correct — protect it during any refactor.
+For this project, Option A (open in new tab with a "long-press to save" instruction) or Option C (server endpoint) are both viable. Option C requires implementing a GET endpoint on the server, but reliably works on all platforms.
 
-**Phase that must address this:** Deploy verification. Confirm in browser DevTools that the WS connection shows `wss://` not `ws://`.
+**Warning signs:**
+- Testing export only on desktop Chrome during development and not on an iPhone
+- No "file saved" feedback — the export appears to work but nothing lands in Files on iOS
 
----
-
-## Moderate Pitfalls
-
----
-
-### Pitfall 7: Android Chrome Suspends JavaScript Timers When Screen Locks
-
-**Symptom:** An Android player locks their screen for 60+ seconds. When they unlock, their client is stuck in a stale state. However, unlike iOS, `onclose` may have fired — they may see "reconnecting" correctly. But their reconnect REJOIN message may be delayed, causing a visible join/rejoin flicker or a brief period where their player appears offline.
-
-**Cause:** Chrome on Android suspends `setTimeout` and `setInterval` when the screen is off. The client-side heartbeat watchdog timer (`setTimeout` in `socket.ts`) stops counting. When the screen turns on, the timer may fire immediately (as if 35s just passed) triggering a reconnect, or it may not fire at all if the OS had already killed the TCP connection and Chrome's `onclose` fired first.
-
-**Prevention:** The current reconnect logic handles this correctly — `onclose` triggers `scheduleReconnect()`, and `REJOIN` on reconnect restores state. The only visible effect is a brief "reconnecting" indicator. This is acceptable for the use case.
-
-**Monitoring:** During multi-device testing, deliberately lock an Android phone for 90s and verify the player rejoins cleanly without needing a full page refresh.
+**Phase to address:** Export implementation phase. Must test on a real iPhone before marking the phase complete.
 
 ---
 
-### Pitfall 8: DeviceMotion Permission Required on iOS — Must Be Requested Inside a User Gesture
+### Pitfall 2: Importing a JSON File During an Active Game Overwrites Live State
 
-**Symptom:** The phone sensor minigame (tilt meter) shows the permission dialog but then the motion data is always zero, or the permission dialog never appears.
+**What goes wrong:**
+The admin imports a config JSON while a game is in progress (`phase === "active"`). The import sends a `SAVE_SETUP` WebSocket message. The server handler already guards this: if `state.phase !== "lobby"`, it returns an error. However, if the frontend does not check phase before calling import, or if the UI does not show a visible warning, the admin may click Import expecting it to work, see nothing happen (silent error), and be confused.
 
-**Cause:** iOS 13+ requires `DeviceMotionEvent.requestPermission()` to be called inside a user gesture handler (e.g., a button `click` event). If it is called on page load or from a `setTimeout`, it is silently denied without a dialog. This is a Safari security restriction, not a WebSocket issue, but it surfaces during real-device testing.
+The deeper risk: if the guard were ever relaxed (e.g., "allow re-import to fix a typo mid-game"), replacing `state.chapters` while `activeChapterIndex` is set would cause `state.chapters[activeChapterIndex]` to point to a chapter from the new config that the groom is not playing. Scores, `minigameDone`, `scavengerDone`, and `servedQuestionIndex` — all runtime state — would be silently reset or misaligned with what players see on screen.
 
-**Prevention:** The permission gate must be triggered by a direct user tap, not programmatically. Verify the sensor game's permission button is a real click handler, not a deferred call. Test on a real iOS device — simulator does not fire DeviceMotion events.
+**Why it happens:**
+The export/import UI is on `/admin/setup`, which is the pre-event setup page. Admins visiting that page mid-game to look at config may accidentally trigger an import. The page gives no visual indication of whether the game is currently active.
 
-**Phase that must address this:** Bug-fix phase after real-device testing.
+**How to avoid:**
+- On the Import button: read `$gameState.phase` before opening the file picker. If `phase === "active"`, show a confirmation modal: "A game is in progress. Importing will reset all setup. Players will not be affected until the next game. Continue?" Do not silently block — the admin needs to know.
+- Never send a `SAVE_SETUP` message if `phase === "active"` without explicit confirmation.
+- Keep the server-side guard (`phase !== "lobby"` → reject) as a backstop regardless of UI checks.
+- After a confirmed import during active phase, do not call `SAVE_SETUP` at all — queue the new config to take effect on the next `RESET_GAME` instead.
 
----
+**Warning signs:**
+- Import button visible and enabled on `/admin/setup` with no phase awareness
+- No confirmation step before replacing setup
 
-### Pitfall 9: Bun `idleTimeout` on WebSocket Closes Connections Before Heartbeat Reaches Client
-
-**Symptom:** Players get disconnected every ~2 minutes even with the 30s server heartbeat running.
-
-**Cause:** `server/index.ts` sets `idleTimeout: 120` (seconds) on the WebSocket server. The `PING` broadcast goes to the `"game"` topic via `server.publish("game", ...)`, but players who have not yet sent a message (not yet subscribed via `ws.subscribe("game")` call in `handleOpen`) may not receive it. More importantly, `idleTimeout` measures inactivity on the Bun WebSocket level — if the client sends no data, Bun may close the connection at 120s even if the server heartbeat is sending data.
-
-**Current code note:** The client sends a `PONG` message in response to every `PING` (`socket.ts` line 101). This resets Bun's idle timer. The flow is: server publishes PING → client receives → client sends PONG → Bun marks connection as active. This is correct behaviour.
-
-**Risk:** If the client's `send()` is called when `readyState !== OPEN` (e.g., during a brief reconnect window), the PONG is silently dropped. Bun's idle timer is not reset. After 120s of no client-to-server traffic, Bun closes the socket. The client sees `onclose`, reconnects, and rejoins cleanly — but there is a brief disruption.
-
-**Prevention:** The current 120s idle timeout gives 4 heartbeat cycles of margin (4 × 30s). Keep this ratio. The PONG response is the correct approach. No change needed unless disruptions are observed during testing.
+**Phase to address:** Import implementation phase. The phase-awareness check must be part of the import flow, not an afterthought.
 
 ---
 
-### Pitfall 10: Server State Lost on Railway Redeploy or Restart
+### Pitfall 3: No Runtime Schema Validation — Malformed JSON Corrupts Server State Silently
 
-**Symptom:** Admin sets up the game, then a Railway restart occurs (crash, deploy, manual restart). All game state is gone — session code changes, all players must rejoin, all setup is lost.
+**What goes wrong:**
+The admin imports a JSON file that was manually edited, exported from an older version of the app, or just truncated/corrupted. `JSON.parse()` succeeds (the file is valid JSON), but fields are missing, wrong types, or have unexpected shapes. The `SAVE_SETUP` message is sent to the server. The server accepts `msg.chapters` as-is with no runtime validation — it does a direct spread into `setState`. From that point, `state.chapters` contains malformed data. The next `UNLOCK_CHAPTER` accesses `chapters[nextIndex].triviaPool`, which may be `undefined`, causing a runtime exception in the handler.
 
-**Cause:** All game state is in-memory (`server/state.ts`). Railway containers are ephemeral. This is intentional for this project (one-time event, no persistence needed), but it is a sharp edge during the pre-event setup phase if Railway restarts the container.
+Looking at `handlers.ts` line 145–153: the `SAVE_SETUP` handler does:
+```typescript
+setState((s) => ({
+  ...s,
+  chapters: msg.chapters,
+  powerUpCatalog: msg.powerUpCatalog,
+  startingTokens: msg.startingTokens ?? 0,
+}));
+```
 
-**Prevention:**
-- Complete setup and lock it in (SAVE_SETUP) as close to game time as possible.
-- Do not set up the game hours ahead and leave it idle — Railway may restart the container.
-- Have a backup: export the SAVE_SETUP payload (chapters, powerUpCatalog, startingTokens) to a local file so it can be quickly re-entered if needed.
-- During the party: `restartPolicyType = "on-failure"` is set — Railway will restart on crashes, which will reset state. Keep the host device (admin) connected throughout.
+There is zero validation of `msg.chapters` shape. A chapter missing `triviaPool` will crash `UNLOCK_CHAPTER` at `ch.triviaPool.length === 0`.
 
-**Phase that must address this:** Operational awareness — document the game-night runbook to set up the game within 30 minutes of starting, not hours ahead.
+**Why it happens:**
+TypeScript's type system only runs at compile time. The WebSocket message is cast as `IncomingMessage` at line 43 of `handlers.ts` using `as IncomingMessage` — this cast tells TypeScript to trust the shape but does nothing at runtime. Any JSON that parses without error passes silently.
 
----
+**How to avoid:**
+Add a lightweight runtime validation step on the frontend before sending `SAVE_SETUP`:
 
-### Pitfall 11: SvelteKit Static Adapter — No Server-Side Rendering, `PUBLIC_` Env Vars Are Build-Time Only
+```typescript
+function validateImportedConfig(raw: unknown): { chapters: Chapter[]; powerUpCatalog: PowerUp[]; startingTokens: number } {
+  if (!raw || typeof raw !== "object") throw new Error("Invalid config: not an object");
+  const r = raw as Record<string, unknown>;
+  if (!Array.isArray(r.chapters)) throw new Error("Invalid config: chapters must be an array");
+  if (r.chapters.length === 0) throw new Error("Invalid config: at least one chapter required");
+  for (const ch of r.chapters as unknown[]) {
+    if (typeof (ch as Chapter).name !== "string") throw new Error("Invalid chapter: missing name");
+    if (!["trivia", "memory"].includes((ch as Chapter).minigameType)) throw new Error("Invalid chapter: bad minigameType");
+    if (!Array.isArray((ch as Chapter).triviaPool)) throw new Error("Invalid chapter: triviaPool must be array");
+    if (typeof (ch as Chapter).scavengerClue !== "string") throw new Error("Invalid chapter: missing scavengerClue");
+    if (typeof (ch as Chapter).reward !== "string") throw new Error("Invalid chapter: missing reward");
+    // validate each TriviaQuestion in triviaPool...
+  }
+  if (!Array.isArray(r.powerUpCatalog)) throw new Error("Invalid config: powerUpCatalog must be an array");
+  if (typeof r.startingTokens !== "number") throw new Error("Invalid config: startingTokens must be a number");
+  return raw as { chapters: Chapter[]; powerUpCatalog: PowerUp[]; startingTokens: number };
+}
+```
 
-**Symptom:** Any env var prefixed `PUBLIC_` (from `$env/static/public`) shows as `undefined` in the deployed app, or shows the value from the build machine rather than Railway's configured value.
+Call this in the FileReader `onload` handler. Show the validation error message to the admin instead of silently sending bad data. Do NOT add Zod for this — it is not worth the dependency for a handful of field checks.
 
-**Cause:** `svelte.config.js` uses `@sveltejs/adapter-static`. Static adapter pre-renders all routes at build time. `$env/static/public` vars are inlined at build time by Vite — they are baked into the JavaScript bundle. If Railway injects a `PUBLIC_` variable at runtime, it has no effect because the bundle was already built with whatever was available at `bun run build` time.
+Additionally, the server-side `SAVE_SETUP` handler should do a basic sanity check (at minimum: `Array.isArray(msg.chapters)` and `msg.chapters.length > 0`) before accepting the payload.
 
-**Current code:** The codebase does not use `$env/static/public` — the WebSocket URL is derived from `window.location` at runtime, not from an env var. This is the correct pattern for a static-adapter app. The only env var the server reads is `ADMIN_TOKEN` and `PORT`, both at runtime.
+**Warning signs:**
+- Import works silently with no validation feedback
+- Trying to unlock a chapter after an import causes a server-side crash or 500
 
-**Risk:** If a future developer tries to add a `PUBLIC_SOMETHING` variable in Railway's dashboard expecting it to change the deployed app's behaviour, it will have no effect.
-
-**Prevention:** Never use `$env/static/public` or `import.meta.env.VITE_*` in this project for values that need to vary per environment. All runtime configuration must be handled server-side (via Railway env vars read by `server/index.ts`) or derived dynamically in the client (as `window.location` already is).
-
----
-
-## Minor Pitfalls
-
----
-
-### Pitfall 12: `bun.lock*` Wildcard in Dockerfile May Miss Lock File
-
-**Symptom:** `bun install` in Docker doesn't use the lock file, installs slightly different package versions than local dev, silent behaviour change.
-
-**Cause:** The Dockerfile copies `bun.lock*` (wildcard). If the lock file is named `bun.lockb` (binary format) and the wildcard doesn't match, Docker silently omits it and `--frozen-lockfile` may fail or be skipped.
-
-**Current code:** `COPY package.json bun.lock* ./` — the `*` is a shell glob that Docker COPY expands. Bun's lock file is named `bun.lockb`. The glob `bun.lock*` should match `bun.lockb`.
-
-**Prevention:** Verify the lock file name: `ls bun.lock*` in the project root. If it is `bun.lockb`, the glob works correctly. If a future Bun version changes the lock file name, update the Dockerfile.
-
----
-
-### Pitfall 13: Railway `healthcheckTimeout = 10` May Be Too Short During Cold Start
-
-**Symptom:** First deploy fails health check. Railway marks the deploy as failed and rolls back. Server logs show the container started successfully, but the health check timed out before `Bun.serve()` was ready.
-
-**Cause:** `healthcheckTimeout = 10` seconds. Bun cold start in the slim Docker image is fast (typically <2s), but if the Railway runtime is under load or the image needs to be pulled, the container may take longer to reach the health endpoint.
-
-**Prevention:** Consider increasing to `healthcheckTimeout = 30`. The cost of a false failure (rollback + retry) is higher than the cost of a 30s wait. At 10s, there's limited margin.
-
----
-
-### Pitfall 14: Railway Free Tier / Sleeping Service — First WebSocket Request After Sleep Gets 502
-
-**Symptom:** The service wakes up on first HTTP request (the SvelteKit page loads), but the WebSocket upgrade request fires ~200ms later before the Bun process is fully warm. The upgrade returns 502.
-
-**Cause:** Railway's free tier (Hobby plan) may sleep idle services. The first request wakes the container, but there's a gap between the HTTP response and the WebSocket being ready.
-
-**Current mitigation:** The client has exponential backoff reconnect. A 502 on first WebSocket attempt triggers `onerror` → `onclose` → reconnect after 500ms. By then the server is warm.
-
-**Prevention:** The client's reconnect logic already handles this. No code change needed. Be aware that the first join attempt at the start of the party may show a brief "reconnecting" state — this is normal and self-resolves within 1-2 seconds.
+**Phase to address:** Import implementation phase, before the `SAVE_SETUP` message is sent.
 
 ---
 
-## Phase-Specific Warnings
+### Pitfall 4: Runtime State Fields Included in Export Break Re-Import
 
-| Phase Topic | Likely Pitfall | Mitigation |
-|-------------|---------------|------------|
-| Railway initial deploy | PORT binding to 127.0.0.1 (Pitfall 4) | Add `hostname: "0.0.0.0"` before first push |
-| Railway initial deploy | ADMIN_TOKEN missing or whitespace (Pitfall 3) | Check logs immediately after deploy |
-| Railway domain setup | 30s proxy timeout on `*.up.railway.app` (Pitfall 1) | Set up custom domain before testing |
-| WebSocket smoke test | Health check passes, WS broken (Pitfall 5) | Use browser DevTools WS tab to confirm 101 |
-| iOS real-device testing | Screen lock silent disconnect (Pitfall 2) | Test lock/unlock cycle explicitly |
-| iOS real-device testing | DeviceMotion permission gate (Pitfall 8) | Test sensor game on real device, not simulator |
-| Android real-device testing | Timer suspension on screen lock (Pitfall 7) | Lock screen for 90s, verify clean rejoin |
-| Pre-party setup | State lost on restart (Pitfall 10) | Set up within 30 min of game start |
-| Any future env var work | Static adapter bakes PUBLIC_ at build time (Pitfall 11) | Use server-side env vars or window.location |
+**What goes wrong:**
+The admin exports the current game config. The export naively serializes the entire `gameState.chapters` array, which includes runtime-only fields: `servedQuestionIndex`, `minigameDone`, and `scavengerDone`. When this file is imported into a fresh game, these runtime fields are already set — `minigameDone: true` and `scavengerDone: true` on chapters that were played, `servedQuestionIndex: 2` pointing to a specific trivia question. The first chapter unlocked shows the groom the trivia question but the server thinks the minigame is already done and skips it. Reward reveals may fire immediately.
+
+Looking at `types.ts` lines 19–27: `Chapter` includes `servedQuestionIndex: number | null`, `minigameDone: boolean`, and `scavengerDone: boolean` as required fields. These are runtime progression markers, not config.
+
+**Why it happens:**
+The easiest export implementation serializes `$gameState.chapters` directly. Developers assume "export the state = export the config", not realising that `Chapter` is a hybrid of config and runtime state.
+
+**How to avoid:**
+When building the export payload, strip all runtime-only fields from each chapter:
+
+```typescript
+function buildExportPayload(state: GameState) {
+  return {
+    chapters: state.chapters.map(({ name, minigameType, triviaPool, scavengerClue, scavengerHint, reward }) => ({
+      name, minigameType, triviaPool, scavengerClue, scavengerHint, reward,
+      // explicitly omit: servedQuestionIndex, minigameDone, scavengerDone
+    })),
+    powerUpCatalog: state.powerUpCatalog,
+    startingTokens: state.startingTokens,
+  };
+}
+```
+
+Conversely, when importing, always normalize the imported data by setting runtime fields to their safe defaults:
+
+```typescript
+const normalizedChapters = imported.chapters.map((ch) => ({
+  ...ch,
+  servedQuestionIndex: null,
+  minigameDone: false,
+  scavengerDone: false,
+}));
+```
+
+This normalization should happen both in the frontend before sending `SAVE_SETUP` and conceptually should mirror what `RESET_GAME` already does.
+
+**Warning signs:**
+- Export file contains fields named `minigameDone`, `scavengerDone`, `servedQuestionIndex` with non-default values
+- First chapter after import is skipped or immediately marked complete
+
+**Phase to address:** Export implementation phase. The payload builder is the right place to establish the chapter data contract.
+
+---
+
+### Pitfall 5: Svelte 5 — Assigning Imported JSON Directly to `$state` Without `structuredClone` Causes Proxy Leakage
+
+**What goes wrong:**
+The FileReader delivers a parsed object. The developer does:
+```typescript
+chapters = JSON.parse(event.target.result);
+```
+This works initially, but the object is a plain JavaScript object, not a Svelte-aware proxy. When the admin then edits chapters in the form (e.g., types in a chapter name), Svelte 5's rune-based reactivity may not track mutations on nested arrays correctly because the references are not proxied through `$state`'s deep reactive proxy. Changes appear to save locally but `$derived(isValid)` may not recompute, or the Save button stays disabled.
+
+The inverse is also true: `$state.snapshot` should be used when passing reactive state out of Svelte (to `JSON.stringify`), not raw `$state` which returns a Proxy. If `JSON.stringify` is called on a Proxy, it works, but subtle proxy-trapping behaviour can cause unexpected serialization of computed getters.
+
+**Why it happens:**
+The existing setup form already handles this correctly for server state restoration (line 25 of `setup/+page.svelte`):
+```typescript
+chapters = structuredClone(gs.chapters);
+```
+But a new import handler written by someone unfamiliar with this pattern might skip the `structuredClone`.
+
+**How to avoid:**
+Always structuredClone imported data before assigning to `$state`:
+```typescript
+chapters = structuredClone(parsedConfig.chapters);
+powerUpCatalog = structuredClone(parsedConfig.powerUpCatalog);
+startingTokens = parsedConfig.startingTokens;
+```
+For export: `JSON.stringify` on a `$state` variable works fine in Svelte 5 (proxies are transparent to JSON serialization), but using `$state.snapshot(chapters)` is the idiomatic and safer approach if there is any doubt.
+
+**Warning signs:**
+- Form fields show imported data but isValid stays false
+- Editing an imported chapter does not enable the Save button
+- Save saves stale values (the original imported values, not the edited ones)
+
+**Phase to address:** Import implementation phase. The structuredClone call should be part of the import handler template.
+
+---
+
+## Technical Debt Patterns
+
+| Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
+|----------|-------------------|----------------|-----------------|
+| Export all of `GameState` (not just setup fields) | No extraction logic needed | Imports include session code, scores, player IDs — importing creates confusing state | Never — always extract setup fields only |
+| Skip runtime field normalization on import | Fewer lines of code | Imported "used" configs break the first chapter unlock | Never — normalize always |
+| Skip client-side schema validation, rely only on server guard | Less code | Silent failures: server rejects the import but admin sees no error message | Acceptable only if the server error is surfaced to the admin via the ERROR WebSocket message |
+| Use `<input type="file" accept=".json,application/json">` | Documents intent | On iOS Safari, `accept` is partially ignored — the file picker may still show all file types | Acceptable — use both MIME and extension, but do not depend on filtering working |
+| Programmatic `<a>` click for export | Works on desktop | Silently fails on iOS Safari — file opens inline instead of downloading | Never for production — must handle iOS |
+
+---
+
+## Integration Gotchas
+
+| Integration | Common Mistake | Correct Approach |
+|-------------|----------------|------------------|
+| FileReader API | Forgetting FileReader is async and trying to use the result synchronously | Use `reader.onload = (e) => { ... }` callback or wrap in a Promise; the result is never available synchronously |
+| FileReader API | Not handling `reader.onerror` | Always add an `onerror` handler — on Android, selecting a file from a cloud provider (Google Drive) can silently fail |
+| `URL.createObjectURL` | Leaking blob URLs — never calling `URL.revokeObjectURL` | Call `revokeObjectURL` in a `setTimeout(() => URL.revokeObjectURL(url), 100)` after triggering the download |
+| iOS Safari export | Using `<a download>` with blob URL | Use `window.open(url, "_blank")` or a server-side download endpoint with `Content-Disposition` header |
+| Android file picker | `accept="application/json"` with complex MIME strings | Use `accept=".json"` (extension) — Android file pickers honour extensions more reliably than MIME types |
+| WebSocket SAVE_SETUP | Sending the message before the WebSocket is `OPEN` | Check `ws.readyState === WebSocket.OPEN` before calling `sendMessage`; the setup page already has a WebSocket connection but check for the edge case where import happens before first STATE_SYNC |
+
+---
+
+## Performance Traps
+
+Performance is not a concern for this project at its scale (1 admin, 5-10 players, one game session). The only relevant trap is:
+
+| Trap | Symptoms | Prevention | When It Breaks |
+|------|----------|------------|----------------|
+| Parsing a very large JSON file synchronously in the FileReader onload callback | Brief UI freeze on low-end Android phones | Keep config small (5 chapters × N questions); the schema naturally limits size | Not a real concern for this use case — a fully populated 5-chapter game is <50KB |
+| Deep-proxying a large imported array via $state | Minor rendering lag when assigning to chapters | Use structuredClone before assignment, which creates a plain object that Svelte wraps cleanly | Only an issue if triviaPool had hundreds of questions — not the case here |
+
+---
+
+## Security Mistakes
+
+| Mistake | Risk | Prevention |
+|---------|------|------------|
+| Accepting the imported JSON file's `sessionCode` field | An attacker crafts a config with a specific sessionCode to match an ongoing session | Always ignore `sessionCode` from imported files — the server never accepts it via `SAVE_SETUP` anyway, but the frontend should not show it or pass it |
+| No file size check before parsing | A 50MB JSON file freezes the browser | Add `if (file.size > 500_000) { show error; return; }` before calling FileReader |
+| Trusting `file.type === "application/json"` as a security check | iOS Safari may report incorrect MIME types for files picked from Files app | Always validate the parsed content, never rely on `file.type` alone |
+| Serving the export via a server endpoint without auth | Anyone who knows the URL can download the full game config | Any server export endpoint must require the `ADMIN_TOKEN` via query param, same as existing admin API pattern |
+
+---
+
+## UX Pitfalls
+
+| Pitfall | User Impact | Better Approach |
+|---------|-------------|-----------------|
+| No feedback after successful import | Admin not sure if it worked — may import twice | Show a success state (e.g., form fills with imported data visually + a brief "Loaded!" flash matching the existing saveFlash pattern) |
+| Export button that silently opens JSON in a new tab on iOS with no explanation | Admin confused, thinks export is broken | Add "On iPhone/iPad: long-press the JSON > Save to Files" instruction text when the export triggers |
+| Import button always enabled even during active game | Admin accidentally imports mid-game, gets a silent error | Disable or add a warning indicator on the Import button when `$gameState.phase === "active"` |
+| No indication of what config is currently loaded | Admin not sure if they're editing fresh config or a previously saved config | Show chapter count and a timestamp or name derived from the file in the import confirmation |
+| FileReader errors (e.g., selecting a folder by mistake on Android) | Blank import, no error shown | Catch all FileReader errors and display a human-readable message ("Could not read file — try a different file") |
+
+---
+
+## "Looks Done But Isn't" Checklist
+
+- [ ] **Export on iOS:** Tested on a real iPhone/iPad, not just desktop Chrome — the file actually saves, not just opens inline
+- [ ] **Import validation:** Importing a JSON file with a missing required field (`scavengerClue`, `reward`, `triviaPool`) shows an error, not a silent save
+- [ ] **Runtime field normalization:** An exported config from a completed game round-trips cleanly — importing it and unlocking Chapter 1 starts the chapter fresh, not skipping to complete
+- [ ] **Phase guard:** Attempting to import while `phase === "active"` shows a confirmation or is blocked — it does not silently fail
+- [ ] **Blob URL leak:** `URL.revokeObjectURL` is called after every export — confirmed in DevTools Memory tab or by code review
+- [ ] **WebSocket connection timing:** Import can be triggered before the first STATE_SYNC — tested by importing immediately on page load before the server state is received
+- [ ] **Large file rejection:** A 1MB JSON file triggers the file size guard, not a browser freeze
+- [ ] **structuredClone:** After importing, editing a chapter name and hitting Save actually sends the edited value — not the original imported value
+
+---
+
+## Recovery Strategies
+
+| Pitfall | Recovery Cost | Recovery Steps |
+|---------|---------------|----------------|
+| Bad import corrupts server state (missing fields crash UNLOCK_CHAPTER) | LOW | Call `RESET_GAME` to return to lobby, then re-import a valid config or re-enter manually; server state is fully replaced |
+| Export opens as inline text on iOS instead of downloading | LOW | Copy the text from the browser, paste into a Notes/Files app manually; or use a desktop browser for the export step |
+| Import during active game is silently rejected | LOW | The server guard prevents state corruption; admin needs to `RESET_GAME` first, then import, then `UNLOCK_CHAPTER` to restart |
+| Imported config has wrong trivia pool structure causing chapter unlock failure | MEDIUM | `RESET_GAME`, fix the JSON file on a desktop, re-import |
+
+---
+
+## Pitfall-to-Phase Mapping
+
+| Pitfall | Prevention Phase | Verification |
+|---------|------------------|--------------|
+| iOS Safari `<a download>` not working (Pitfall 1) | Export implementation | Test export on real iPhone; confirm file lands in Files app |
+| Import during active game (Pitfall 2) | Import implementation | Set phase to active, attempt import — confirm confirmation dialog or block |
+| No runtime schema validation (Pitfall 3) | Import implementation | Import a JSON with one field removed — confirm error message appears |
+| Runtime fields in export break re-import (Pitfall 4) | Export implementation | Export after playing a round, re-import, unlock Chapter 1 — confirm it starts fresh |
+| Svelte 5 structuredClone missing (Pitfall 5) | Import implementation | Import a config, edit a chapter name, hit Save — confirm edited value is saved |
 
 ---
 
 ## Sources
 
-- Railway WebSocket known issues: [Railway Help Station — WebSocket Connection Issues](https://station.railway.com/questions/web-socket-connection-issues-in-producti-ec8d4a69)
-- Railway 30s proxy timeout: [Railway Help Station — Socket disconnects after 10 minutes](https://station.railway.com/questions/socket-disconnects-after-10-minutes-bbceef40)
-- Railway timeout workarounds: [Any workarounds for the 5 min request timeout?](https://station.railway.com/questions/any-workarounds-for-the-5-min-request-ti-b055adde)
-- iOS Safari silent close: [WebKit bug #247943 — WebSocket onclose not fired](https://bugs.webkit.org/show_bug.cgi?id=247943)
-- iOS background suspension: [Apple Developer Forums — Prevent WebSocket from closing](https://developer.apple.com/forums/thread/716118)
-- Safari iOS 26 WebSocket upgrade bug: [Debugging WebSocket Upgrade Failures Safari iOS26](https://www.jackpearce.co.uk/posts/debugging-websocket-upgrade-failures-safari-ios26/)
-- Android Chrome timer suspension: [primus/primus issue — Android devices reconnect on screen off](https://github.com/primus/primus/issues/350)
-- General WebSocket timeout guide: [WebSocket.org — Fix Timeout and Silent Dropped Connections](https://websocket.org/guides/troubleshooting/timeout/)
-- Bun WebSocket Railway template: [Railway Help Station — Bun WebSockets](https://station.railway.com/templates/bun-web-sockets-2cabbb7d)
-- SvelteKit env var handling: [SvelteKit $env/static/public docs](https://svelte.dev/docs/kit/$env-static-public)
-- Bun WebSocket docs: [Bun WebSockets](https://bun.com/docs/runtime/http/websockets)
-- Railway Bun deployment guide: [Railway — Deploy a Bun App](https://docs.railway.com/guides/bun)
+- iOS Safari `<a download>` + blob URL bug: [WebKit bug #216918](https://bugs.webkit.org/show_bug.cgi?id=216918)
+- iOS Safari `download` attribute history: [WebKit bug #167341](https://bugs.webkit.org/show_bug.cgi?id=167341)
+- FileSaver.js iOS problems: [eligrey/FileSaver.js issue #12](https://github.com/eligrey/FileSaver.js/issues/12)
+- iOS Safari file download workarounds: [Simon Neutert — Force iOS Safari to download](https://www.simon-neutert.de/2025/js-safari-media-download/)
+- Android Chrome `accept` attribute limitations: [MDN — input type=file](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input/file)
+- Android multiple MIME types in accept: [apache/cordova-android issue #874](https://github.com/apache/cordova-android/issues/874)
+- Svelte 5 `$state` and structuredClone: [Svelte docs — $state](https://svelte.dev/docs/svelte/$state)
+- Runtime validation vs TypeScript type system: [LogRocket — Schema validation with Zod](https://blog.logrocket.com/schema-validation-typescript-zod/)
+- Blob URL memory leak: [LogRocket — Programmatically downloading files](https://blog.logrocket.com/programmatically-downloading-files-browser/)
+
+---
+*Pitfalls research for: JSON import/export, SvelteKit 5 admin UI, Bun WebSocket backend*
+*Researched: 2026-04-13*

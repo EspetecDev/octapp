@@ -1,224 +1,164 @@
 # Project Research Summary
 
 **Project:** octapp — Bachelor Party Game
-**Domain:** Real-time multiplayer web game, Railway cloud deployment, mobile browser testing
-**Milestone:** v1.1 — Deployment & Testing
-**Researched:** 2026-04-10
+**Domain:** Browser-based file import/export for a SvelteKit 5 admin UI backed by a Bun WebSocket server
+**Researched:** 2026-04-13
 **Confidence:** HIGH
 
 ## Executive Summary
 
-octapp is a SvelteKit static-adapter frontend + Bun WebSocket server already validated in previous phases. This milestone is purely operational: get the working local build live on Railway, verify it behaves on real iOS and Android hardware, and fix the mobile-specific bugs that only surface on physical devices. The stack, architecture, and game logic are settled — no technology decisions remain open.
+The v1.2 milestone adds JSON config import/export to the existing `/admin/setup` page. Research confirms this is a narrow, well-bounded feature: zero new npm dependencies, zero new server handlers, and zero new WebSocket message types are required. Export is a pure browser-side Blob download from the existing Svelte `$state` form variables. Import parses a local file, validates its shape in the browser, populates the form, and lets the existing `SAVE_SETUP` WebSocket message handle the server write — the same path the admin uses today when clicking "Save Setup".
 
-The deployment path is low-friction. The existing Dockerfile, railway.toml, and server code are production-ready with two caveats: ADMIN_TOKEN must be set in the Railway dashboard (the only manual env var step), and a custom Railway domain should be provisioned before multi-device testing to avoid the shared-CDN idle-timeout behaviour on `*.up.railway.app`. Code-wise, `wss://` handling is already correct in `src/lib/socket.ts` (line 183 derives protocol from `window.location.protocol`), and `Bun.serve()` defaults to `0.0.0.0` so no hostname fix is needed — one researcher was mistaken on this point.
+The recommended approach is a two-step import model: load config into the form, then the admin reviews and saves. This is architecturally correct (form state is the authoritative source, not `gameState`) and operationally safer (no silent server overwrites). A dedicated `configSerializer.ts` module isolates the pure serialization and validation logic from the UI component, keeping `+page.svelte` focused on presentation.
 
-The primary risks are mobile-specific and only discoverable on real devices: iOS Safari silently killing WebSocket connections on screen lock (the 35s heartbeat watchdog already mitigates this), the DeviceMotion permission gate silently failing if not triggered inside a user gesture, and the `*.up.railway.app` CDN 30s idle-drop (mitigated by custom domain + existing 30s server heartbeat which is sufficient for the confirmed 60s proxy idle timeout). All three have clear prevention strategies and none require architectural changes.
-
----
+The primary risk is iOS Safari's known limitation with `<a download>` + blob URLs (WebKit bug #216918): on iOS Safari the file opens inline rather than downloading. This is a production-critical issue since the admin is expected to use the app on an iPhone. The mitigation is to fall back to `window.open(url, "_blank")` for iOS, which lets the user save via the share sheet. A secondary risk is the `restoredFromState` guard in the setup page: forgetting to set it to `true` after import causes the next `STATE_SYNC` to silently overwrite the just-imported form values. Both pitfalls are well-understood and have clear fixes.
 
 ## Key Findings
 
-### Stack Additions Needed (Minimal — Mostly Operational)
+### Recommended Stack
 
-The existing stack requires no new libraries or services. What v1.1 adds is operational tooling only.
+No new packages are needed. The browser's native File API (`Blob`, `URL.createObjectURL`, `File.prototype.text`, `<input type="file">`) covers everything required. All target APIs have 96%+ global browser coverage and are fully supported on iOS Safari 14+ and Android Chrome. The existing stack (SvelteKit 5, Bun WebSocket, Tailwind v4, Railway) is unchanged.
 
-**One-time setup actions:**
-- Railway CLI (`brew install railway` or `npm i -g @railway/cli`) — for `railway login`, `railway link`, `railway up`, `railway logs`
-- Railway dashboard: generate a public domain under Service → Settings → Networking → Public Networking
-- Railway dashboard: set `ADMIN_TOKEN` (only manual env var — see below)
+**Core technologies:**
+- `Blob` + `URL.createObjectURL` + `<a download>`: file export — native browser; no library needed
+- `File.prototype.text()`: async file read — simpler than legacy `FileReader`; iOS Safari 14+
+- `JSON.stringify` / `JSON.parse`: serialization — built-in; no schema library needed
+- `SAVE_SETUP` (existing WebSocket message): server write after import — zero new message types
+- `configSerializer.ts` (new module): pure serialization/validation logic isolated from UI
 
-**Core technologies already in place:**
-- Bun 1.x (oven/bun:1 Docker image) — WebSocket server runtime; floating `1` tag acceptable for a one-time event
-- SvelteKit with static adapter — pre-renders all routes at build time; WebSocket URL derived from `window.location` at runtime (correct pattern for static adapter)
-- Railway Dockerfile builder — Railpack does not yet auto-detect Bun; Dockerfile path is required and already configured in railway.toml
+### Expected Features
 
-**What NOT to add:** Redis, SQLite, nginx sidecar, Socket.IO, horizontal scaling, or dotenvx. All are unnecessary for 5–10 players on a single ephemeral server.
+**Must have (table stakes) — v1.2 launch:**
+- Export button downloads current chapters + powerUpCatalog + startingTokens as `octapp-setup.json`
+- Import button opens file picker, parses the file, and populates the form
+- Confirmation dialog before import (destructive action; `window.confirm()` is sufficient)
+- Error message on malformed or schema-invalid JSON
+- Success flash on import (reuse existing `saveFlash` pattern)
+- Import button disabled when game phase is not "lobby"
+- iOS-safe export: `window.open(blob URL, "_blank")` fallback for iOS Safari
 
-### Environment Variables
+**Should have — add after first validation:**
+- Preview count in confirm dialog ("Import 3 chapters, 4 power-ups?") — low effort, high trust
+- Schema validation with field-level error messages — add once an admin reports a confusing parse failure
 
-| Variable | Source | Action Required |
-|----------|--------|----------------|
-| `ADMIN_TOKEN` | Manual — Railway dashboard | Set before first deploy. Use Raw Editor to avoid trailing-whitespace bugs. Seal the variable. |
-| `PORT` | Railway injects automatically (`8080`) | Do NOT set. Server already reads `process.env.PORT ?? 3000`; Railway's value takes precedence. |
-| `RAILWAY_PUBLIC_DOMAIN` | Railway injects automatically | Read-only reference if needed server-side. Not needed by current code. |
+**Defer (v2+):**
+- Export filename with session code — premature; only relevant across multiple events
+- Import from URL / remote JSON — out of scope; requires CORS, auth, and infrastructure
+- Server-side config persistence — in-memory by design; files in the admin's file system are the persistence layer
 
-**ADMIN_TOKEN is the only manual setup step in the Railway dashboard.**
+### Architecture Approach
 
-### Expected Test Coverage (What Must Pass)
+The feature fits entirely within the existing client/server boundary without changing it. Export is pure client-side: read from `$state` form variables, strip runtime fields, serialize to Blob, trigger download. Import is client-parse + existing server path: `file.text()` → `validateConfig()` → populate `$state` runes → admin reviews → `sendMessage(SAVE_SETUP)`. A new `configSerializer.ts` module hosts `serializeConfig()`, `validateConfig()`, and the `GameConfig` type. The server (`handlers.ts`, `state.ts`) and WebSocket protocol (`ClientMessage` union) are untouched.
 
-Multi-device testing has three roles: Admin (PC browser), Groom (iPhone), Party Member (Android phone). These scenarios must pass for the night to work:
-
-**Table stakes — game-breaking if they fail:**
-- Three-device join with correct role assignment
-- Chapter unlock broadcasts to all devices within 2 seconds
-- Trivia answer registers and score appears on admin view
-- Sensor (tilt) minigame: iOS DeviceMotion permission gate appears and motion data flows
-- Token earn/spend with correct server-authoritative balance
-- Screen lock recovery: reconnect fires and full-state snapshot restores game view
-
-**Differentiators (validate the party feel, not blocking):**
-- Sub-1s broadcast latency for power-up activation
-- Haptic feedback on win/loss (Android only — iOS Safari has no Vibration API)
-- All three devices show chapter transition overlay within 2 seconds
-
-**Defer to second pass:** Portrait lock edge cases, font rendering on low-DPI Android, custom domain vs `*.up.railway.app` SSL cert timing.
-
-### Architecture: No New Components Required
-
-The current single-process Bun.serve architecture (HTTP + WebSocket + static file serving on one port) is fully compatible with Railway's proxy model. Railway terminates TLS at the edge; Bun receives plain WebSocket frames internally. No nginx sidecar, no separate static CDN, no load balancer config is needed.
-
-**Verified compatible, no code changes required:**
-
-| Component | Status | Verified Fact |
-|-----------|--------|---------------|
-| `wss://` protocol switching | Already correct | `src/lib/socket.ts` line 183 derives protocol from `window.location.protocol` |
-| `Bun.serve()` host binding | Already correct | Bun defaults to `0.0.0.0` when no `hostname` is specified (confirmed in Bun docs) |
-| Server heartbeat (30s) | Already correct | Railway proxy idle timeout is 60s; 30s heartbeat provides 30s margin |
-| `PORT` from env | Already correct | `process.env.PORT ?? 3000`; Railway injects `PORT=8080` at runtime |
-| `/health` endpoint | Already correct | Returns 200; railway.toml references it with 10s timeout |
-| Client reconnect + full-state | Already correct | Handles Railway's 15-minute hard connection cutoff |
-
-**Should add (low effort, meaningful safety):**
-- `process.on("uncaughtException", ...)` handler in `server/index.ts` — prevents silent crash leading to state wipe mid-game
-- Client-side PING discard — prevents PING frames surfacing as unknown message type in client log
-- `drainingSeconds = 5` in railway.toml — gives in-flight WS connections 5s to close gracefully on redeploy
-
-**One architecture risk:** In-memory state is wiped on any Railway restart (crash, redeploy, manual restart). With `restartPolicyType = "on-failure"`, a crash mid-game resets all session state. Operational mitigation: complete game setup within 30 minutes of game start, not hours ahead.
+**Major components:**
+1. `src/lib/configSerializer.ts` (NEW) — `serializeConfig()`, `validateConfig()`, `GameConfig` type; pure functions, independently testable
+2. `src/routes/admin/setup/+page.svelte` (MODIFIED) — export button + handler, import file input + async handler, flash states, `restoredFromState` interaction
+3. `src/lib/types.ts` (MODIFIED, 1 line) — re-export `GameConfig` from `configSerializer.ts`
+4. `server/handlers.ts` (UNCHANGED) — existing `SAVE_SETUP` handler covers import without modification
+5. `server/state.ts` (UNCHANGED) — `GameState` and `Chapter` shapes unchanged
 
 ### Critical Pitfalls
 
-1. **`*.up.railway.app` CDN drops WebSocket at ~30s** — The shared Railway CDN terminates idle connections faster than the documented 60s proxy timeout. Fix: provision a custom domain before multi-device testing. The more permissive proxy behaviour on custom domains makes heartbeat timing non-critical.
+1. **iOS Safari ignores `<a download>` on blob URLs** — the file opens inline instead of saving. Detect iOS via UA and call `window.open(url, "_blank")` instead; add "Tap share icon > Save to Files" instruction text. Must be tested on a real iPhone before the export phase is marked done.
 
-2. **iOS Safari kills WebSocket silently on screen lock** — `onclose` does not fire (WebKit bug #247943). The existing 35s client-side heartbeat watchdog already handles this. Test explicitly: lock groom's iPhone for 15 seconds mid-trivia, verify state restores on unlock.
+2. **`restoredFromState` flag not set after import** — the `$effect` watching `$gameState` fires on the next `STATE_SYNC` and overwrites the just-imported form values with stale server state. Fix: set `restoredFromState = true` immediately after populating form state from the parsed file.
 
-3. **`ADMIN_TOKEN` missing or has trailing whitespace** — Server logs `"(not set)"` in Railway logs only, not in the browser. Use Railway's Raw Editor when setting the variable. Check Railway logs immediately after first deploy for this message.
+3. **No runtime schema validation — malformed JSON corrupts server state silently** — `SAVE_SETUP` in `handlers.ts` does zero shape validation; a chapter missing `triviaPool` will crash `UNLOCK_CHAPTER`. Fix: validate the parsed object in `validateConfig()` before sending `SAVE_SETUP`. Check `Array.isArray(chapters)`, per-chapter required fields (`name`, `minigameType`, `triviaPool`, `scavengerClue`, `reward`), and `typeof startingTokens === "number"`.
 
-4. **Health check passes while WebSocket is broken** — Railway's `GET /health` check has no knowledge of WebSocket state. After each deploy, manually verify the WS connection in browser DevTools (Network → WS tab, confirm 101 Switching Protocols). Do not rely on the green health indicator as WebSocket proof.
+4. **Runtime fields in export break re-import** — `Chapter` carries `servedQuestionIndex`, `minigameDone`, and `scavengerDone` as runtime state. If exported as-is, an import from a played game restores chapters that appear already complete. Fix: strip these three fields in `serializeConfig()` and reset them to defaults in the import handler.
 
-5. **DeviceMotion permission silently denied on iOS** — `DeviceMotionEvent.requestPermission()` must be called synchronously inside a direct user gesture handler. Calling it on page load or in a `setTimeout` produces no dialog and no error — just zero motion data. Only testable on a real iOS device, not simulator.
-
-6. **State lost on Railway restart** — Any deploy or crash wipes in-memory session state. Set up the game close to start time. Export the SAVE_SETUP payload locally as a backup.
-
----
+5. **`structuredClone` omitted on import** — assigning parsed JSON directly to `$state` runes skips Svelte 5's deep proxy wrapping, causing reactivity gaps: edited values may not trigger recomputation of `$derived(isValid)`. Fix: always `structuredClone` imported arrays before assigning to `chapters` and `powerUpCatalog`. The existing code already uses this pattern for server state restoration (line 25, `+page.svelte`).
 
 ## Implications for Roadmap
 
-### Phase 1: Railway Deploy and Smoke Test
-**Rationale:** Everything else depends on having a live URL. Catch deployment blockers in isolation before inviting three people to test simultaneously.
-**Delivers:** Live HTTPS URL, confirmed WebSocket 101 in DevTools, ADMIN_TOKEN verified in Railway logs.
-**Actions:**
-- `railway login` + `railway link` + `railway up`
-- Set `ADMIN_TOKEN` in Railway dashboard (Raw Editor, then Seal)
-- Generate domain under Service → Settings → Networking
-- Confirm `/health` returns 200; confirm WebSocket shows 101 in browser DevTools
-- Check Railway logs for `"Admin token: (not set)"` — if seen, redeploy after fixing
-**Avoids:** Pitfall 3 (missing ADMIN_TOKEN), Pitfall 5 (false health check confidence)
-**Research flag:** Standard patterns — no deeper research needed.
+Based on research, the feature decomposes cleanly into three sequential phases. Build order is dictated by a single dependency chain: serializer logic must exist before export UI, and export must be verified before import is layered on top (they share the same data contract).
 
-### Phase 2: Custom Domain and Connection Stability
-**Rationale:** The `*.up.railway.app` CDN 30s idle drop is a silent game-breaker that looks like a server bug. Resolve this before multi-device testing to avoid false debugging rabbit holes.
-**Delivers:** Stable WebSocket connection surviving 5+ minutes of idle, confirmed via Railway logs showing no unexpected close events.
-**Actions:**
-- Configure custom domain in Railway dashboard (preferred) OR reduce heartbeat from 30s to 20s as fallback
-- Optionally add `drainingSeconds = 5` to railway.toml
-- Optionally add `process.on("uncaughtException", ...)` to server/index.ts
-- Monitor Railway logs for 5 minutes with no game activity — confirm no disconnects
-**Avoids:** Pitfall 1 (`*.up.railway.app` 30s CDN drop)
-**Research flag:** Standard patterns — Railway dashboard custom domain setup is documented.
+### Phase 1: Config Serializer Module
 
-### Phase 3: Three-Device Join and Core Flow
-**Rationale:** Validates the deployment works for the actual party configuration before drilling into individual minigame issues.
-**Delivers:** All three roles connected simultaneously, chapter unlock broadcast within 2s, scores updating on admin view.
-**Test sequence (run in order):**
-1. Admin opens live URL on PC — verify no console errors, code generated
-2. Groom joins via code on iPhone — verify role assignment and waiting view
-3. Party member joins on Android — verify group waiting view
-4. Admin unlocks Chapter 1 — verify all three update within 2 seconds
-5. Admin triggers trivia — verify groom sees minigame view
-**Avoids:** Pitfall 6 (mixed-content wss vs ws — already fixed, but verify in DevTools)
-**Research flag:** Standard patterns.
+**Rationale:** `configSerializer.ts` is a pure function module with no UI dependencies. Writing it first establishes the `GameConfig` type and the runtime field stripping/validation contract before any UI code touches it. It is the lowest-risk starting point and can be tested in isolation.
 
-### Phase 4: Mobile-Specific Bug Hunt
-**Rationale:** The bugs that only appear on physical devices cannot be found earlier. This phase is explicitly discovery-driven.
-**Delivers:** All table-stakes scenarios passing on real hardware.
-**High-priority test cases:**
-- Sensor (tilt) minigame on groom's iPhone — DeviceMotion permission gate (Pitfall 5 / FEATURES Pitfall 8)
-- Screen lock recovery — groom iPhone locked 15s mid-trivia, verify state restore (Pitfall 2)
-- Android screen lock 90s — verify clean rejoin without full page refresh (Pitfall 7)
-- Token earn race: rapid taps on party phone — verify no negative balance
-- Android back button mid-game — verify does not exit session
-- iOS viewport keyboard push on join code entry (low risk, verify quickly)
-**Avoids:** Pitfall 2, Pitfall 7, Pitfall 8
-**Research flag:** Needs real-device validation — sensor minigame permission flow cannot be confirmed in simulator. Real iOS device required.
+**Delivers:** `serializeConfig()` (strips runtime fields, adds `version: 1`), `validateConfig()` (shape check with useful error strings), `GameConfig` type re-exported via `types.ts`.
+
+**Addresses:** Pitfalls 3, 4, 5 — the serializer enforces the strip-on-export and validate-on-import contracts at the boundary before any UI is written.
+
+**Avoids:** Spreading validation logic across the UI component; making the `GameConfig` type ambiguous.
+
+### Phase 2: Export
+
+**Rationale:** Export is additive and read-only — it does not touch WebSocket state, server code, or the `restoredFromState` guard. It is the safer half to ship first. iOS Safari behavior must be confirmed here on a real device before import is built.
+
+**Delivers:** "Export Config" button on `/admin/setup`. Calls `serializeConfig()` then `downloadJson()`. iOS fallback: `window.open(blob, "_blank")` + instruction text for share sheet save. `URL.revokeObjectURL` called after every export.
+
+**Addresses:** Table-stakes "Export button triggers file download" and "Downloaded filename includes context" (`octapp-setup.json`).
+
+**Avoids:** Pitfall 1 (iOS Safari `<a download>` breakage), Pitfall 4 (runtime fields in exported JSON).
+
+**Research flag:** None — patterns are established and iOS workaround is documented in STACK.md and PITFALLS.md.
+
+### Phase 3: Import + End-to-End Verification
+
+**Rationale:** Import has the most integration surface: `restoredFromState` guard, phase awareness, validation error display, success flash, and the two-step review model. It comes last so it can rely on a verified serializer and a confirmed export data shape.
+
+**Delivers:** "Import Config" file input on `/admin/setup`. Hidden `<input type="file" accept=".json,application/json">` triggered by a styled button. Async `file.text()` read → `validateConfig()` → `structuredClone` → populate form state → set `restoredFromState = true` → success flash. Import button disabled when `$gameState.phase !== "lobby"`. Inline error display on validation failure. File size guard (`> 500 KB → reject`). End-to-end test: export a live config, reload, import it, verify form, save, verify server state matches via a second browser tab.
+
+**Addresses:** All remaining table-stakes features. Pitfalls 2, 3, 5.
+
+**Avoids:** Pitfall 2 (import during active game), Pitfall 3 (malformed JSON corrupting state), Pitfall 5 (`structuredClone` omission). The `restoredFromState` interaction must be verified in the end-to-end test.
+
+**Research flag:** None — integration points are fully mapped to existing code with exact line references in ARCHITECTURE.md.
 
 ### Phase Ordering Rationale
 
-- Phase 1 before everything: no live URL means no real-device testing is possible.
-- Phase 2 before three-device testing: CDN drop would cause false failures in Phase 3, wasting test session time.
-- Phase 3 before Phase 4: establishing baseline connectivity catches deployment issues before spending time on mobile-specific edge cases.
-- Phase 4 is discovery-driven by design: not all bugs are known ahead of time. Budget time for iteration.
+- Serializer-first enforces the data contract (what fields belong in a config file) before any UI touches it. This prevents the runtime-fields pitfall from being baked into export and having to be untangled during import.
+- Export before import: iOS behavior must be confirmed on a real device; the export shape confirmed in Phase 2 is the exact input shape validated in Phase 3.
+- Import last: it is the most behaviorally complex step (phase guard, `restoredFromState`, `structuredClone`, two-step model) and is safest to write once the serializer contract is stable.
 
 ### Research Flags
 
-**Needs real-device validation (cannot be confirmed by code inspection or simulator):**
-- Phase 4: DeviceMotion permission gate on physical iOS device
-- Phase 4: Screen lock WebSocket recovery on iOS Safari (WebKit bug — behaviour varies by iOS version)
-- Phase 4: Android back-button history stack behaviour (varies by SvelteKit router usage)
+Phases with standard patterns (no research-phase run needed):
+- **Phase 1 (serializer):** Pure TypeScript functions; well-documented patterns; no external dependencies.
+- **Phase 2 (export):** iOS workaround fully documented; Blob/createObjectURL patterns in STACK.md. No unknown territory.
+- **Phase 3 (import):** Integration with existing `SAVE_SETUP` flow fully mapped in ARCHITECTURE.md with exact line numbers; `restoredFromState` interaction is the only non-obvious step and is explicitly documented.
 
-**Standard patterns (no deeper research needed):**
-- Phase 1: Railway CLI deploy workflow — well-documented
-- Phase 2: Custom domain setup — Railway dashboard UI
-- Phase 3: Multi-device WebSocket join — existing reconnect + full-state architecture already validated in Phase 01
-
----
+No phases require additional research-phase runs.
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | No new technologies. Railway CLI and Dockerfile patterns confirmed from Railway official docs. |
-| Features | HIGH | Test scenarios derived from real failure modes documented across multiple sources. Mobile-specific issues are well-known. |
-| Architecture | HIGH | Railway proxy behaviour (60s idle timeout, 15-min cutoff, TLS termination, 0.0.0.0 binding) confirmed from Railway Specs & Limits page and Bun official docs. |
-| Pitfalls | HIGH for Railway/iOS; MEDIUM for Android timing | iOS Safari WebKit bugs are filed and confirmed. Android timer suspension behaviour varies by manufacturer. |
+| Stack | HIGH | Zero new dependencies; all APIs verified via MDN and Can I Use with exact iOS version data |
+| Features | HIGH | Feature set is narrow and directly derives from admin workflow; anti-features well argued |
+| Architecture | HIGH | Grounded in direct codebase inspection (`handlers.ts`, `+page.svelte`, `types.ts`) with exact line numbers |
+| Pitfalls | HIGH | iOS Safari blob URL bug confirmed via open WebKit bug tracker; `restoredFromState` guard confirmed via code inspection; Svelte 5 `structuredClone` from official docs |
 
-**Overall confidence: HIGH**
+**Overall confidence:** HIGH
 
-### Gaps to Address During Execution
+### Gaps to Address
 
-- **`*.up.railway.app` vs custom domain idle timeout:** PITFALLS.md reports ~30s CDN drop on the shared domain; ARCHITECTURE.md confirms 60s from the Railway Specs & Limits page. These are not contradictory — the CDN layer in front of `*.up.railway.app` is more aggressive than the documented proxy timeout. Custom domain sidesteps this entirely. Validate in Phase 2 by monitoring logs before committing to heartbeat interval change.
-- **Heartbeat interval (30s vs 20s):** The existing 30s heartbeat is confirmed sufficient against the 60s proxy idle timeout. If custom domain is not configured, reducing to 20s provides extra margin against the CDN layer. Decision point: resolve in Phase 2 based on observed behaviour.
-- **`visibilitychange` reconnect on iOS tab return:** Not currently implemented. The 35s watchdog handles it eventually. Flag for Phase 4 bug-fix pass if screen-lock testing reveals noticeable recovery delay.
-- **Admin role restoration on tab refresh:** FEATURES.md identifies this as high-complexity. Current implementation stores admin role in WS server memory. If admin refreshes mid-game, role reassignment depends on reconnect flow. Needs explicit testing in Phase 3.
-
----
+- **iOS export UX copy:** The "Tap share icon > Save to Files" instruction text should be validated on a real iPhone to confirm the UI flow matches the copy. Minor — can be adjusted during Phase 2 implementation.
+- **Android file picker filtering:** Research confirms `accept` is advisory only on Android. During Phase 3 verification, test on a real Android device to confirm the picker shows `.json` files. The error handling path covers the case where it does not filter.
+- **Server-side SAVE_SETUP validation:** PITFALLS.md recommends adding a basic `Array.isArray(msg.chapters)` guard server-side as a backstop. Low-effort addition to Phase 3; not strictly required if client-side validation is solid.
 
 ## Sources
 
-### Primary (HIGH confidence — official documentation)
-- [Railway Networking Specs & Limits](https://docs.railway.com/networking/public-networking/specs-and-limits) — 60s proxy idle timeout, 15-min connection cutoff, TLS termination, connection limits
-- [Railway SSE vs WebSocket Guide](https://docs.railway.com/guides/sse-vs-websockets) — 15-minute hard cutoff, reconnect requirement
-- [Railway Config as Code Reference](https://docs.railway.com/config-as-code/reference) — railway.toml all options including drainingSeconds
-- [Railway CLI Guide](https://docs.railway.com/guides/cli) — login, link, up, logs commands
-- [Railway Variables Reference](https://docs.railway.com/reference/variables) — auto-injected vars, Seal feature
-- [Railway Bun Deployment Guide](https://docs.railway.com/guides/bun) — Dockerfile requirement, Railpack limitation
-- [Bun HTTP Server Docs](https://bun.com/docs/runtime/http/server) — Bun.serve defaults to 0.0.0.0
-- [Bun WebSocket Docs](https://bun.com/docs/runtime/http/websockets) — idleTimeout behaviour, pub/sub
+### Primary (HIGH confidence)
+- `server/handlers.ts` lines 135–153 — SAVE_SETUP handler shape and lobby-only phase guard
+- `src/routes/admin/setup/+page.svelte` lines 18–30 — `restoredFromState` guard
+- `src/lib/types.ts` — `ClientMessage` union; `Chapter` runtime fields
+- [WebKit bug #216918](https://bugs.webkit.org/show_bug.cgi?id=216918) — iOS Safari `<a download>` + blob URL (open since 2021)
+- [MDN — File.prototype.text()](https://developer.mozilla.org/en-US/docs/Web/API/Blob/text) — iOS Safari 14+ support confirmed
+- [Can I Use — Blob URLs](https://caniuse.com/bloburls) — 96.72% global coverage
+- [Can I Use — File API](https://caniuse.com/fileapi) — 96.72% global coverage
+- [Svelte docs — $state](https://svelte.dev/docs/svelte/$state) — `structuredClone` pattern for reactive import
 
-### Secondary (MEDIUM-HIGH confidence — community reports, filed bugs)
-- [Railway Help Station — WebSocket connection issues](https://station.railway.com/questions/web-socket-connection-issues-in-producti-ec8d4a69)
-- [Railway Help Station — Socket disconnects](https://station.railway.com/questions/socket-disconnects-after-10-minutes-bbceef40)
-- [WebKit bug #247943](https://bugs.webkit.org/show_bug.cgi?id=247943) — onclose not fired on iOS screen lock
-- [DeviceMotionEvent.requestPermission iOS 13+](https://dev.to/li/how-to-requestpermission-for-devicemotion-and-deviceorientation-events-in-ios-13-46g2)
-- [iOS touch-action 300ms delay](https://developer.chrome.com/blog/300ms-tap-delay-gone-away)
-- [Safari iOS 26 WebSocket upgrade bug](https://www.jackpearce.co.uk/posts/debugging-websocket-upgrade-failures-safari-ios26)
+### Secondary (MEDIUM confidence)
+- [web.dev: Read files in JavaScript](https://web.dev/read-files/) — `file.text()` pattern (verified via WebSearch)
+- [Simon Neutert — Force iOS Safari to download](https://www.simon-neutert.de/2025/js-safari-media-download/) — `window.open` fallback for iOS
+- [eligrey/FileSaver.js issues](https://github.com/eligrey/FileSaver.js/issues/12) — iOS Safari blob download edge cases
 
-### Verified by Code Inspection (overrides researcher speculation)
-- `src/lib/socket.ts` line 183 — `wss://` protocol already derived from `window.location.protocol`; no code change needed
-- `server/index.ts` — `Bun.serve()` has no `hostname` field; Bun defaults to `0.0.0.0`; no hostname fix needed
-- `server/index.ts` lines 71-73 — 30s heartbeat already implemented; sufficient for 60s proxy idle timeout
-- `railway.toml` + `server/index.ts` — `restartPolicyType = "on-failure"` and `process.env.PORT ?? 3000` both correct as-is
+### Tertiary (LOW confidence)
+- Import/export UX trust patterns — community conventions for confirmation dialogs on destructive admin actions
 
 ---
-
-*Research completed: 2026-04-10*
+*Research completed: 2026-04-13*
 *Ready for roadmap: yes*

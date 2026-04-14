@@ -1,252 +1,166 @@
-# Technology Stack: Railway Deployment
+# Stack Research: v1.2 JSON Import/Export
 
 **Project:** octapp — Bachelor Party Game
-**Milestone:** v1.1 Deployment & Testing
-**Researched:** 2026-04-10
-**Scope:** What is needed to get this specific app live on Railway. Not a re-evaluation of the stack — the stack is already validated.
+**Milestone:** v1.2 — Load Preconfigured Games
+**Researched:** 2026-04-13
+**Confidence:** HIGH
+**Scope:** New capabilities only — existing stack (SvelteKit 5, Bun WS, Tailwind v4, Railway) is validated and not re-examined here.
 
 ---
 
-## Current State Assessment
+## Verdict: No New Libraries Required
 
-The existing Dockerfile and railway.toml are fundamentally correct. No major rewrites needed. The gaps are operational: env vars not yet set in the Railway dashboard, a domain not yet generated, and a few Dockerfile hardening details worth addressing.
-
----
-
-## Railway CLI Setup
-
-### Installation
-
-```bash
-brew install railway
-```
-
-Or without Homebrew:
-```bash
-npm i -g @railway/cli
-```
-
-### First-Deploy Workflow (one-time)
-
-```bash
-# 1. Authenticate
-railway login
-
-# 2. Create or link the project
-railway init          # creates new project and links this directory
-# OR
-railway link          # links to an existing Railway project
-
-# 3. Set required environment variables (see section below)
-railway variable set ADMIN_TOKEN=<your-secret-token>
-
-# 4. Deploy
-railway up
-
-# 5. Generate a public URL
-# Go to: Service → Settings → Networking → Public Networking → Generate Domain
-# OR via CLI:
-railway domain
-```
-
-### Ongoing Deploy Workflow
-
-```bash
-# Push a new deploy
-railway up
-
-# Stream logs from the running service
-railway logs
-
-# Build logs only
-railway logs --build
-
-# Last 100 lines
-railway logs -n 100
-
-# Run a local command with Railway env vars loaded (useful for debugging)
-railway run bun run server/index.ts
-```
-
-Railway also auto-deploys on every push to the linked GitHub branch if you connect the repo in the dashboard. That is the recommended workflow once the first manual deploy succeeds — set it up under Service → Settings → Source → Connect GitHub Repo.
+JSON import/export for a browser-based admin page is fully covered by native browser APIs. Zero new `npm install` calls are needed. Every API involved has 96%+ global browser coverage and full support on iOS Safari 17+ and Android Chrome (the app's target platforms).
 
 ---
 
-## Environment Variables
+## Browser APIs to Use
 
-### Variables to Set Manually in Railway Dashboard (or via CLI)
+### Export: JSON File Download
 
-| Variable | Value | Notes |
-|----------|-------|-------|
-| `ADMIN_TOKEN` | A random secret string (e.g. `openssl rand -hex 16`) | Gate for `/api/admin/session`. Required — server logs "(not set)" if missing but does not crash. Without it anyone can hit the admin endpoint. |
+| API | Purpose | iOS Safari | Android Chrome | MDN |
+|-----|---------|-----------|---------------|-----|
+| `JSON.stringify` | Serialize game config to string | ✅ All versions | ✅ All versions | Built-in |
+| `new Blob([str], { type: 'application/json' })` | Wrap string as typed binary blob | ✅ iOS 10+ | ✅ All versions | [Blob](https://developer.mozilla.org/en-US/docs/Web/API/Blob) |
+| `URL.createObjectURL(blob)` | Create temporary in-memory URL | ✅ iOS 10+ | ✅ All versions | [createObjectURL](https://developer.mozilla.org/en-US/docs/Web/API/URL/createObjectURL) |
+| `a.download` attribute + `a.click()` | Trigger file save dialog | ✅ iOS 13+ (reliable iOS 17+) | ✅ All versions | [download](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/a#download) |
+| `URL.revokeObjectURL(url)` | Release blob memory after click | ✅ iOS 10+ | ✅ All versions | [revokeObjectURL](https://developer.mozilla.org/en-US/docs/Web/API/URL/revokeObjectURL) |
 
-Use Railway's **Seal** feature for `ADMIN_TOKEN`: in the Variables tab, click the three-dot menu on the variable → Seal. Sealed variables are injected at runtime but never shown in the UI or returned by the API. This is the correct approach for a secret.
+**Pattern:**
+```typescript
+function exportConfig(gameState: GameState): void {
+  const payload = {
+    chapters: gameState.chapters,
+    powerUpCatalog: gameState.powerUpCatalog,
+    startingTokens: gameState.startingTokens,
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'game-config.json';
+  a.click();
+  URL.revokeObjectURL(url); // must be called immediately after click — frees memory
+}
+```
 
-### Variables Railway Injects Automatically (do not set these yourself)
+**iOS Safari note:** The `download` attribute is fully respected in iOS Safari 17+ (iOS 17 released Sept 2023). In iOS 13–16 the browser may open the JSON in a new tab rather than saving it. For a 2026 bachelor party app targeting current iPhones, iOS 17+ is a safe assumption. No fallback needed.
 
-| Variable | Value | Notes |
-|----------|-------|-------|
-| `PORT` | `8080` | Railway injects this at runtime for all deployment types including Docker. The server already reads `process.env.PORT ?? 3000` — this will work as-is. |
-| `RAILWAY_PUBLIC_DOMAIN` | `<name>.up.railway.app` | The public hostname. Use this if you ever need to construct URLs server-side (e.g., share links). Not needed by the current server code. |
-| `RAILWAY_ENVIRONMENT_NAME` | `production` | Useful for conditional logging. Not needed now. |
-
-**Important:** `PORT` is injected at runtime, not build time. The current Dockerfile sets `ENV PORT=3000` as a default. That default will be overridden by Railway's runtime injection of `PORT=8080`. No change needed — the server uses `process.env.PORT ?? 3000`, which correctly defers to Railway's injected value.
-
-### Variables NOT to add
-
-- `NODE_ENV=production` — Bun does not require this to switch modes. Do not add it unless a specific library breaks without it.
-- `DATABASE_URL` — No database. Ephemeral in-memory state is intentional.
-- Any build-time `ARG` declarations — The server reads env vars at runtime, not build time. No `ARG` directives needed in the Dockerfile.
+**Memory note:** `URL.revokeObjectURL` must always be called. Omitting it leaks the blob in the browser's memory for the lifetime of the page.
 
 ---
 
-## Dockerfile Considerations
+### Import: JSON File Read
 
-### Current Dockerfile: Status
+| API | Purpose | iOS Safari | Android Chrome | Notes |
+|-----|---------|-----------|---------------|-------|
+| `<input type="file" accept=".json">` | Trigger OS file picker | ✅ Partial (accept hint, not enforced) | ✅ Partial | Browser may show all files; `.json` filters by extension as a hint |
+| `input.files[0]` (`File` object) | Reference selected file | ✅ iOS 10+ | ✅ All | Part of the File API (96.72% global coverage) |
+| `file.text()` | Read file contents as string (Promise) | ✅ iOS 14+ | ✅ All | Modern alternative to FileReader; cleaner async/await usage |
+| `JSON.parse(str)` | Deserialize string to object | ✅ All | ✅ All | Built-in |
 
-The existing Dockerfile is production-ready. Specific notes on each decision:
-
-**Multi-stage build (builder + runner):** Correct. The `oven/bun:1-slim` runner image excludes build tools. Keep this.
-
-**`oven/bun:1` and `oven/bun:1-slim` tags:** These resolve to the latest Bun 1.x release. As of April 2026, Bun 1.2.x is current. The `1` tag will float forward automatically on each deploy, which is acceptable for a short-lived project. If you want reproducible builds, pin to a specific version like `oven/bun:1.2.10`. For a one-time event, floating is fine.
-
-**`bun.lock*` (wildcard):** The asterisk handles both `bun.lock` and `bun.lockb` (the binary lockfile format). Correct.
-
-**`--frozen-lockfile` with fallback in production stage:**
-```dockerfile
-RUN bun install --production --frozen-lockfile 2>/dev/null || bun install --production
+**Pattern:**
+```typescript
+async function importConfig(file: File): Promise<void> {
+  const text = await file.text();
+  const raw = JSON.parse(text);
+  // validate shape before sending — see PITFALLS.md
+  sendMessage({ type: 'SAVE_SETUP', chapters: raw.chapters, powerUpCatalog: raw.powerUpCatalog, startingTokens: raw.startingTokens });
+}
 ```
-This fallback exists because the production stage has no lockfile copied. This is fine but slightly fragile. Since `server/index.ts` has no production dependencies currently, the install step is a no-op. No change required.
 
-**`CMD ["bun", "run", "server/index.ts"]`:** This is exec form (JSON array). Railway injects `PORT` into the runtime environment, and Bun reads `process.env.PORT` directly — no shell variable expansion needed. Exec form is correct and preferred. Do not change to shell form.
+**`file.text()` vs `FileReader`:** `file.text()` is a Promise-based method on the `File` object, available in iOS Safari 14+ and all modern browsers. It is strictly simpler than the older `FileReader` callback API. No reason to use `FileReader` for this use case.
 
-**`ENV PORT=3000`:** This is a Dockerfile default. Railway overrides it at runtime with `PORT=8080`. The healthcheck in `railway.toml` will hit port 8080, which is what Railway uses. No conflict.
-
-### One Optional Improvement
-
-Add `ENV NODE_ENV=production` only if a library complains. Do not add it proactively — Bun does not need it.
+**`accept` attribute:** Use `accept=".json,application/json"` — the `.json` extension filter is the more reliably respected form across iOS Safari. The MIME type `application/json` is included as a fallback hint. Either way the user can bypass the filter in the OS picker; the filter is cosmetic UX, not a security boundary.
 
 ---
 
-## Railway WebSocket Considerations
+## Integration with Existing WebSocket Flow
 
-### TLS Termination: Handled Automatically
+### Export: No Server Involvement
 
-Railway terminates TLS at the proxy layer. Your Bun server listens on plain HTTP/WebSocket (`ws://`). External clients connect via `wss://` — Railway handles the upgrade. You do not need to configure certificates or serve TLS from within the container.
+Export reads directly from the `$gameState` Svelte store on the client. The data is already present — it was synced via the existing `STATE_SYNC` broadcast. No new WebSocket message, no server change, no HTTP endpoint needed.
 
-Client-side WebSocket URL construction should use:
-```javascript
-const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-const ws = new WebSocket(`${protocol}//${window.location.host}/ws`);
 ```
-This automatically uses `wss://` in production (Railway) and `ws://` in local dev. Verify the existing client code uses this pattern.
+$gameState (client store) → JSON.stringify → Blob → download
+```
 
-### Idle Timeout: 10 Minutes TCP, Server Heartbeat Already Implemented
+### Import: Reuse SAVE_SETUP — No New Message Type
 
-Railway's proxy has a 10-minute TCP idle timeout. The server already implements a 30-second pub/sub heartbeat:
+After parsing and validating the JSON file, send the existing `SAVE_SETUP` message with the file's content as the payload. The server handler at `server/handlers.ts:135` already:
+- Validates the game is in `"lobby"` phase before accepting
+- Replaces `chapters`, `powerUpCatalog`, and `startingTokens` in server state
+- Broadcasts `STATE_SYNC` to all connected clients
+
+```
+File picker → file.text() → JSON.parse → validate → sendMessage({ type: 'SAVE_SETUP', ... })
+```
+
+This means the imported config immediately populates both the server state and the admin's form (via the existing `$effect` that restores form from `$gameState` on sync, line 23–29 in `+page.svelte`).
+
+**No new WebSocket message type is required.** Do not add `LOAD_CONFIG` — it would duplicate `SAVE_SETUP` with identical semantics.
+
+### Export Data Shape
+
+The exported JSON must match the `SAVE_SETUP` payload exactly:
 
 ```typescript
-// server/index.ts line 71-73
-setInterval(() => {
-  server.publish("game", JSON.stringify({ type: "PING", ts: Date.now() }));
-}, 30_000);
+type ExportedConfig = {
+  chapters: Chapter[];         // from src/lib/types.ts
+  powerUpCatalog: PowerUp[];   // from src/lib/types.ts
+  startingTokens: number;
+};
 ```
 
-**This is correct.** 30 seconds is well within the 10-minute threshold. No change needed.
-
-The Bun `idleTimeout: 120` (line 65) is the Bun-level per-connection timeout, which is secondary to the Railway proxy timeout. Both values are set correctly.
-
-**One gap:** Clients must be subscribed to the `"game"` topic for this heartbeat to reach them. If a client is not yet subscribed (i.e., pre-JOIN state), the heartbeat does not keep their connection alive. For a pre-join idle connection, Railway may close it after 10 minutes — acceptable for this use case since players join quickly.
-
-### HTTP Request Timeout: 5 Minutes Max
-
-Railway enforces a 5-minute maximum for HTTP responses. WebSocket connections are exempt from this limit. The `/health` endpoint returns immediately, so no issue there.
-
-### WebSocket vs HTTP Request Timeout
-
-Use WebSocket for all game state communication. Never use long-polling or streaming HTTP responses — those would hit the 5-minute limit. The existing architecture is correct.
-
----
-
-## railway.toml Review
-
-Current file:
-```toml
-[build]
-builder = "dockerfile"
-dockerfilePath = "Dockerfile"
-
-[deploy]
-healthcheckPath = "/health"
-healthcheckTimeout = 10
-restartPolicyType = "on-failure"
-restartPolicyMaxRetries = 3
-```
-
-### Assessment
-
-**`builder = "dockerfile"`:** Required. Railway cannot auto-detect Bun projects with Railpack yet (as of April 2026). Keep this.
-
-**`healthcheckPath = "/health"`:** Correct. The server has a `/health` route returning `200 OK`. Railway will poll this after deploy before switching traffic to the new container.
-
-**`healthcheckTimeout = 10`:** 10 seconds. Bun starts in under 1 second for this server. 10 seconds is generous and correct. The Railway default is 300 seconds — overriding to 10 makes failed deploys surface faster.
-
-**`restartPolicyType = "on-failure"`:** Correct for a production service. The server should not restart on normal exit (0), only on crashes.
-
-**`restartPolicyMaxRetries = 3`:** Reasonable cap. After 3 crash-restart cycles, Railway stops retrying and marks the deployment failed, which will alert you.
-
-### Optional Additions to Consider
-
-```toml
-[deploy]
-# ... existing config ...
-drainingSeconds = 5   # Give in-flight WS connections 5s to close gracefully on redeploy
-```
-
-`drainingSeconds` delays the SIGKILL signal after SIGTERM, giving connected WebSocket clients time to receive a final disconnect message. For a party game where a mid-game redeploy would be jarring, 5 seconds is a low-cost improvement. Not required for the first deploy — add it once you have confirmed the basic deploy works.
-
----
-
-## Networking: Getting a Public URL
-
-After the first successful deploy:
-
-1. Go to the Railway dashboard
-2. Select the service → Settings → Networking → Public Networking
-3. Click **Generate Domain**
-4. Railway assigns `<project-name>.up.railway.app` (or similar)
-5. Share this URL with all players
-
-The URL will be `https://<name>.up.railway.app`. WebSocket connections from the client should use `wss://<name>.up.railway.app/ws`.
-
-**Custom domain:** Not needed for a one-time event. If desired, add a CNAME in your DNS provider pointing to the Railway-assigned domain, then add the custom domain under Service → Settings → Networking. Railway provisions a Let's Encrypt certificate automatically. Wait for certificate generation before testing WebSocket on the custom domain — WSS will fail until the cert is issued.
+Fields like `servedQuestionIndex`, `minigameDone`, `scavengerDone` are runtime-only state on `Chapter`. They should be stripped on export (or preserved and ignored by the server — `SAVE_SETUP` accepts them if present since they are valid `Chapter` fields). Stripping them is cleaner.
 
 ---
 
 ## What NOT to Add
 
-| Thing | Why Not |
-|-------|---------|
-| Redis / external pub/sub | 5-10 players, single server, single process — in-memory pub/sub is correct |
-| Persistent disk / SQLite | One-time event, no need for state survival across restarts |
-| Horizontal scaling (numReplicas > 1) | WebSocket state is in-memory; multiple replicas would split state across instances. Stay at 1 replica. |
-| Socket.IO | Native Bun WebSockets already validated and working |
-| Nginx reverse proxy in front of Bun | Railway handles TLS and proxying; adding Nginx inside the container adds complexity with no benefit |
-| `railway.json` | `railway.toml` already exists and is equivalent; don't add a second config format |
-| dotenvx or encrypted .env files | Railway's sealed variables cover this use case |
-| Railpack builder | Railpack does not yet detect Bun projects. Dockerfile is the right builder here. |
+| Avoid | Why |
+|-------|-----|
+| FileSaver.js | Zero-dependency alternative exists with native browser APIs; FileSaver only adds value for IE10 compatibility which is irrelevant here |
+| file-saver npm package | Same reason — pure browser API is sufficient |
+| `FileReader` (callback API) | `file.text()` is simpler and available in all target browsers (iOS 14+) |
+| `window.open(URL.createObjectURL(blob))` | Opens blob in new tab, does not trigger download; wrong pattern |
+| New HTTP endpoint for export | No server-side serialization needed — data is already in `$gameState` on the client |
+| New `LOAD_CONFIG` WebSocket message type | Exact duplicate of existing `SAVE_SETUP`; adds protocol surface area with no benefit |
+| Zod / JSON schema validation library | Inline shape validation with `Array.isArray` + field presence checks is sufficient for a one-file config; no need for a dependency |
+| File System Access API (`showSaveFilePicker`) | Not supported in iOS Safari; only works in Chromium-based desktop browsers |
+
+---
+
+## Installation
+
+None. No new packages required.
+
+---
+
+## Version Compatibility
+
+| API | Min iOS Safari | Min Android Chrome | Notes |
+|-----|---------------|-------------------|-------|
+| `Blob` | iOS 10 | 26 | Widely supported |
+| `URL.createObjectURL` | iOS 10 | 26 | Widely supported |
+| `a.download` (blob URL) | iOS 13 (reliable: iOS 17) | All | iOS 17 = Sept 2023; safe for 2026 |
+| `File.prototype.text()` | iOS 14 | All | iOS 14 = Sept 2020; safe for 2026 |
+| `<input type="file">` | All | All | Universal |
 
 ---
 
 ## Sources
 
-- [Railway Bun Deployment Guide](https://docs.railway.com/guides/bun) — Dockerfile requirement confirmed, Railpack does not auto-detect Bun
-- [Railway Config as Code Reference](https://docs.railway.com/config-as-code/reference) — All railway.toml deploy options
-- [Railway Healthchecks](https://docs.railway.com/deployments/healthchecks) — Default 300s timeout, PORT used for healthcheck
-- [Railway CLI Guide](https://docs.railway.com/guides/cli) — install, login, link, up, logs commands
-- [Railway Variables Reference](https://docs.railway.com/reference/variables) — RAILWAY_PUBLIC_DOMAIN and other auto-injected vars
-- [Railway Help Station: PORT in Docker](https://station.railway.com/questions/bug-report-port-env-variable-not-injec-8fe16b9c) — Railway injects PORT=8080 at runtime, confirmed by employee
-- [Railway Help Station: WebSocket issues](https://station.railway.com/questions/web-socket-connection-issues-in-producti-ec8d4a69) — No special platform config needed for WS
-- [Railway Help Station: Socket disconnects after 10 min](https://station.railway.com/questions/socket-disconnects-after-10-minutes-bbceef40) — 10-minute TCP idle timeout, 10-30s heartbeat recommended
-- [Railway Help Station: 5-min HTTP timeout](https://station.railway.com/questions/any-workarounds-for-the-5-min-request-ti-b055adde) — WebSockets exempt from 5-min HTTP limit
-- [Bun Docker Hub — oven/bun](https://hub.docker.com/r/oven/bun) — Image tags and versions
+- [Blob URLs — Can I Use](https://caniuse.com/bloburls) — Blob + createObjectURL support: iOS 10+, 96.72% global
+- [File API — Can I Use](https://caniuse.com/fileapi) — File.text(), input.files: iOS 10+, 96.72% global
+- [Input file accept — Can I Use](https://caniuse.com/input-file-accept) — iOS Safari partial (hint-only), Android Chrome partial
+- [WebKit Bug 167341](https://bugs.webkit.org/show_bug.cgi?id=167341) — iOS Safari download attribute history; resolved in iOS 13+
+- [Apple Developer Forums: PWA locally generated text download](https://developer.apple.com/forums/thread/119017) — Blob + a.click() confirmed pattern for iOS Safari
+- [FileSaver.js iOS issues](https://github.com/eligrey/FileSaver.js/issues/12) — Known iOS Safari blob download edge cases; reasons not to use the library
+- [web.dev: Read files in JavaScript](https://web.dev/read-files/) — File API, file.text() pattern (MEDIUM confidence — WebSearch verified)
+
+---
+
+*Stack research for: JSON import/export, SvelteKit 5 admin page, Bun WebSocket*
+*Milestone: v1.2*
+*Researched: 2026-04-13*

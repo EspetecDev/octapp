@@ -1,202 +1,171 @@
-# Feature Landscape: Multi-Device Testing
+# Feature Research: JSON Config Import/Export
 
-**Domain:** Real-time WebSocket party game — multi-device smoke test
-**Researched:** 2026-04-10
-**Scope:** What multi-device testing typically surfaces, structured by role, with mobile-specific production issues that do not appear in Chrome DevTools.
-
----
-
-## Table Stakes — Test Scenarios by Role
-
-These are the scenarios that MUST pass for the game to be considered production-ready. If any fail, the night breaks.
-
-### Role: Admin (PC Browser)
-
-| Scenario | What to Verify | Complexity | Known Failure Mode |
-|---|---|---|---|
-| Create session, get 6-char code | Code generated, shared URL works on phone | Low | PORT env var hardcoded instead of Railway-injected; 502 on connection |
-| Open pre-event setup, save config | Trivia questions, scavenger clues, power-up catalog persisted to server state | Low | SAVE_SETUP payload silently dropped if WS not yet open at page load |
-| Unlock Chapter while groom + party are connected | All three devices update simultaneously within ~1s | Medium | Admin sees chapter advance but clients miss broadcast if WS reconnect is mid-flight |
-| Real-time scores view updates as groom completes minigames | Score increments arrive in real time, no stale reads | Medium | Score mutations sent before full state rebroadcast causes party to see old total |
-| Admin override on scavenger hunt "Found It!" | Groom view transitions to reward reveal | Low | Admin click lands on wrong chapter if two chapters unlocked in quick succession |
-| Session persistence across admin tab refresh | Rejoin as admin, state is intact | High | Admin role not reassigned on reconnect if role stored only in WS server memory, not session state |
-
-### Role: Groom (Phone — iOS Safari or Android Chrome)
-
-| Scenario | What to Verify | Complexity | Known Failure Mode |
-|---|---|---|---|
-| Join via code on phone | Join wizard renders, code accepted, transitions to groom waiting view | Low | Mixed-content error if WS uses ws:// on HTTPS Railway URL |
-| Trivia minigame — answer within 15s | Radial countdown animates, answer registers, win/loss overlay fires | Medium | 300ms tap delay on iOS causes answer tap to miss if `touch-action: manipulation` not set on option buttons |
-| Sensor minigame — tilt meter on real phone | DeviceMotion permission gate appears, motion data flows, tilt reaches 80% | High | Permission gate never shown if `DeviceMotionEvent.requestPermission` call is not inside a user gesture handler — silent failure on iOS |
-| Sensor minigame — permission denied by groom | Graceful fallback, no crash, retry available | Medium | `undefined` data on DeviceMotion event when permission denied; unguarded access throws and freezes view |
-| Memory/matching game — touch flip cards | Cards flip on tap, no ghost state, timer counts down | Medium | Rapid double-tap on card triggers two flip events; immutability check must prevent double-match |
-| Scavenger hunt — request hint | Score deducts 10pts, hint text shows, reflected on admin | Low | Hint request sent but deduction not confirmed if server response drops; optimistic update shows wrong score |
-| Groom locks phone mid-minigame | On unlock, minigame state is intact or game recovers gracefully | High | iOS Safari drops WS connection on screen lock; reconnect fires but server may have advanced state — groom rejoins mid-chapter with no context |
-| Groom switches to another app for 30s | Connection drops, exponential backoff reconnects, full-state snapshot restores view | High | Backoff timer not cleared on successful reconnect; multiple parallel reconnect attempts create duplicate message handlers |
-| Reward reveal — full-screen overlay | Overlay fires on groom phone when admin unlocks a reward | Medium | Overlay fires correctly in local dev (loopback), but on real device the WS message arrives out of order if chapter unlock and reward unlock are sent in rapid succession |
-
-### Role: Party Member (Phone — mixed iOS/Android)
-
-| Scenario | What to Verify | Complexity | Known Failure Mode |
-|---|---|---|---|
-| Join via code on second phone | Join wizard, code accepted, transitions to group waiting view | Low | Same mixed-content / WS upgrade issue as groom |
-| Earn tokens via tap mechanic | Token count increments in real time, reflected on admin scores view | Medium | Multiple rapid taps race against each other; server must debounce or process serially |
-| Spend token on power-up | Power-up activates, broadcast to groom and admin | Medium | Token balance goes negative if client sends spend before server confirms prior earn |
-| Spend token on sabotage | Sabotage triggers on groom view | Medium | Same race as power-up; order of message processing matters |
-| Chapter recap card overlay appears | Overlay shows on party member phone when admin unlocks new chapter | Low | Party member misses overlay if they joined after the chapter unlock event (late joiner issue) |
-| Party member locks phone, returns | Reconnects, token balance and chapter state restored | High | Full-state snapshot on reconnect must include tokenBalances per-player; partial snapshots leave balance at 0 |
-| Two party members spend tokens simultaneously | Both transactions acknowledged, no double-spend | High | Race condition on server-side balance — requires serial processing or optimistic lock |
+**Domain:** Browser-based admin UI — JSON config import/export for a game setup page
+**Researched:** 2026-04-13
+**Confidence:** HIGH (browser APIs verified via MDN; UX patterns from production admin tool conventions)
 
 ---
 
-## Differentiators — Tests That Validate the "Party" Experience
+## Feature Landscape
 
-These are not required for correctness but validate the intended feel of the game.
+### Table Stakes (Users Expect These)
 
-| Feature | Value | Complexity | Test Approach |
-|---|---|---|---|
-| Haptic feedback on minigame win/loss | Tactile confirmation feels polished | Low | Must test on physical Android (Chrome); iOS Safari does not support Vibration API — verify graceful no-op, not crash |
-| Sub-1s broadcast latency for power-ups | Sabotage feels immediate, not laggy | Medium | Timestamp tap on party phone, watch groom phone; Railway RTT typically 50–150ms on EU/US servers |
-| Recap card overlay timing | All three devices show chapter transition within 2s of admin action | Medium | Watch all three screens simultaneously; staggered arrival is a UX failure even if technically delivered |
-| Token economy legibility on small screen | Token count, power-up list readable at arm's length | Low | Real device at normal holding distance; DevTools viewport does not replicate font rendering on low-DPI Android screens |
+Features the admin assumes exist. Missing any of these = the import/export feels broken or untrustworthy.
 
----
+| Feature | Why Expected | Complexity | Notes |
+|---------|--------------|------------|-------|
+| Export button triggers file download | Standard pattern for any "save config" action; admin expects a file to appear in Downloads | LOW | `Blob` + `URL.createObjectURL` + `<a download>` click. Works on iOS Safari and Android Chrome without any library. Must use `application/json` MIME type. |
+| Downloaded filename includes context | Filename `octapp-setup.json` beats `download.json`; admin can recognise the file later | LOW | Hardcode a meaningful filename in the `download` attribute — no user input needed. |
+| Import via file picker | Standard pattern: button opens OS file picker, user selects `.json` file | LOW | Hidden `<input type="file" accept=".json,application/json">` styled via a label/button. Works on iOS and Android. Do NOT use File System Access API — Safari does not support it. |
+| Imported data replaces current setup | Admin expects the page to reflect the loaded config immediately | LOW | Parse file with `FileReader.readAsText` + `JSON.parse`, then call the existing `saveSetup()` path to push via `SAVE_SETUP` WebSocket message. No new server endpoint needed. |
+| Confirmation dialog before import | Import is destructive (overwrites current setup); admin expects a "are you sure?" gate | LOW | Native `window.confirm()` is sufficient here — this is an admin-only screen, not a consumer UX. A custom modal adds complexity for no meaningful gain on mobile. |
+| Error message on malformed JSON | If the file is corrupted or wrong type, admin needs to know why it failed | LOW | Catch `JSON.parse` error, show an inline error string below the import button. No toast library needed — a red `<p>` is sufficient. |
+| Success feedback after import | Admin needs confirmation that import was applied, not just silence | LOW | Reuse the existing `saveFlash` green flash pattern already present in the Save button. |
 
-## Anti-Features — Do Not Test or Implement During This Milestone
+### Differentiators (Nice-to-Have, Not Expected)
 
-| Anti-Feature | Why Avoid | What to Do Instead |
-|---|---|---|
-| Load testing (10+ simultaneous connections) | Designed for 5–10 players; Railway free tier handles that easily | Test with exactly 3 devices matching real-night setup |
-| Automated reconnect stress testing | Over-engineers for a one-time event | Manual: turn airplane mode on/off once per role, verify recovery |
-| Video or audio streaming over WS | Out of scope per PROJECT.md | — |
-| Persistent session across server restart | Ephemeral by design | If Railway restarts mid-test, treat as new session |
+Features that add polish. None are required for the feature to feel complete.
 
----
+| Feature | Value Proposition | Complexity | Notes |
+|---------|-------------------|------------|-------|
+| Schema validation with field-level errors | Instead of "invalid JSON", tell the admin "Chapter 2 is missing a scavenger clue" | MEDIUM | Requires writing a validator against the `Chapter[]` + `PowerUp[]` type shapes. Valuable if configs are hand-edited between events. Adds ~30 lines of validation logic. |
+| Preview before confirming import | Show chapter count and power-up count in the confirm dialog: "Import 3 chapters and 4 power-ups?" | LOW | Parse the file, check lengths, inject counts into the confirm message. Minimal extra work, significantly reduces "did it work?" anxiety. |
+| Filename reflects event name | Auto-name the export `octapp-{sessionCode}-setup.json` | LOW | Grab `$gameState.sessionCode` at export time. Adds zero complexity; improves file management across events. |
 
-## Mobile-Specific Production Issues Not Visible in Chrome DevTools
+### Anti-Features (Commonly Requested, Often Problematic)
 
-These do not surface during local development or DevTools device mode. They only appear on physical devices.
-
-### Critical
-
-**1. WebSocket drops on iOS screen lock**
-Safari freezes the memory of backgrounded pages and silently closes the WS connection without firing `onclose`. The server eventually times out the socket, but the client sees nothing until the screen is unlocked. The exponential backoff reconnect must detect the stale connection and re-handshake. Test: lock the groom's iPhone for 15 seconds mid-trivia, unlock, verify state recovery.
-
-**2. DeviceMotion permission is silently skipped if not in a user gesture**
-`DeviceMotionEvent.requestPermission()` on iOS 13+ must be called synchronously inside a user-initiated event handler (button click). Calling it on page load, in a `setTimeout`, or inside an `async` function that was not itself triggered by a direct gesture fails silently — the permission sheet never appears and `DeviceMotionEvent` data is undefined. DevTools sensor simulation never exercises the permission gate.
-
-**3. Mixed-content WebSocket on Railway**
-Railway serves apps over HTTPS. Any `ws://` URL (non-secure) will be blocked by the browser on a real device under the mixed-content policy. DevTools on localhost does not enforce this because localhost is treated as a secure origin. The WS client URL must use `wss://` in production. Verify via `window.location.protocol` check in the WS URL construction.
-
-**4. Railway proxy 30-second timeout on `*.up.railway.app`**
-Railway's edge proxy terminates idle WebSocket connections after 30 seconds on the default `*.up.railway.app` domain. This is not a Railway bug — it is the CDN's idle-connection timeout. The app already implements exponential backoff reconnect (validated in Phase 01), but the test must confirm reconnect fires and full-state snapshot is received before the timer for the current minigame expires. Mitigation: configure a custom domain (avoids CDN timeout) or ensure WS ping/pong heartbeat fires every 20 seconds.
-
-### Moderate
-
-**5. 300ms tap delay on iOS for minigame answer buttons**
-Without `touch-action: manipulation` on interactive elements, iOS Safari waits 300ms after every tap to check for a double-tap. On the 15-second trivia timer, a 300ms ghost delay is perceptible. CSS fix: apply `touch-action: manipulation` to all game buttons. Viewport meta `width=device-width` also eliminates the delay in modern Safari. DevTools touch simulation uses synthetic events that bypass this delay entirely.
-
-**6. Vibration API not available on iOS Safari**
-`navigator.vibrate()` is undefined on iOS Safari (all versions). The haptic feedback calls in win/loss overlays must be guarded with `if ('vibrate' in navigator)`. DevTools on desktop Chrome does not simulate vibration, but Android Chrome does execute it. A missing guard does not crash the game — it throws a silent TypeError — but if any downstream code depends on the return value, it will misbehave. Verify the guard exists.
-
-**7. Double-tap card flip in memory minigame on real touch screens**
-Physical touchscreens generate touch events at higher frequency than simulated DevTools touch. Rapid consecutive taps on the same card can fire two `click` events before the CSS flip animation finishes, bypassing the "already flipped" guard if that guard reads DOM state instead of immutable JS state. Verify the guard is based on game state array, not `classList.contains('flipped')`.
-
-**8. Android Chrome back-button exits the game**
-On Android, the hardware back button navigates browser history. If the SvelteKit router adds entries to the history stack during view transitions (join → waiting → game), the back button pops the user out of the game into the join screen mid-session. Test: press Android back button during the trivia minigame. Expected: browser warns or stays in game. Fix if needed: `history.replaceState` instead of `pushState` for in-game view transitions, or intercept `popstate`.
-
-**9. iOS viewport keyboard push on any text input**
-If any view has a text input (e.g., the join code entry field), the iOS software keyboard pushes the viewport up and clips game UI. DevTools does not simulate keyboard-induced viewport resize. Test: focus the join code field on iPhone, verify no critical UI is clipped. This is low risk for mid-game views since the join wizard is the only text-input-heavy screen.
-
-**10. Portrait lock not enforced**
-The game is smartphone-first in portrait. On real devices, rotating to landscape changes the viewport aspect ratio and may break the tilt meter's axis mapping in the sensor minigame. DevTools rotation does simulate this, but the interaction between DeviceMotion axis data and landscape orientation is only testable on a real device. Test: rotate the phone 90 degrees during the sensor minigame.
-
-### Minor
-
-**11. Font rendering on low-DPI Android screens**
-Some mid-range Android phones have DPR 1.5 or lower. Token counts and minigame timers may render crisply in DevTools (which defaults DPR to device-pixel-ratio) but appear blurry or too small on the physical screen. Test on the actual Android device that will be used at the party.
-
-**12. Safe area insets on iPhone notch/Dynamic Island**
-Without `env(safe-area-inset-*)` padding in the CSS, UI elements at the top or bottom of the screen may be clipped by the notch, Dynamic Island, or home indicator. DevTools does not simulate safe area insets by default. Test: verify all interactive elements are reachable without the notch overlapping them.
+| Feature | Why Requested | Why Problematic | Alternative |
+|---------|---------------|-----------------|-------------|
+| JSON editor / textarea in the UI | "Let me edit the config directly in the browser" | Adds a text editor, syntax highlighting, live validation — massive scope creep for a one-time-event admin | Export → edit in VS Code/TextEdit → import. The admin is a developer. |
+| Import from URL / remote JSON | "Store the config in a Gist or Dropbox" | CORS, auth, link rot, mobile network failures — far outside scope | Export file → share via AirDrop or Slack → import |
+| Version history / undo | "Oops I imported the wrong file" | Requires diff tracking and state snapshots | Tell admin to export before importing. One extra step. |
+| Merge import (add to existing chapters) | "I want to add chapters from another config" | Ambiguous semantics — what wins on conflict? servedQuestionIndex, minigameDone etc. are runtime state | Replace-all is unambiguous. Document "export first, then re-add manually" if needed. |
+| Server-side config persistence | "Save configs to a database" | App is in-memory by design; Railway single-replica; no DB in scope | JSON files in the admin's own file system are the persistence layer for this app |
 
 ---
 
 ## Feature Dependencies
 
 ```
-Railway deployment (live URL)
-    → All multi-device scenarios (requires real network, not localhost)
+Export (download)
+    ──reads──> $gameState (chapters, powerUpCatalog, startingTokens)
+    ──no server call needed──> pure client-side Blob download
 
-HTTPS URL (wss://)
-    → iOS + Android WebSocket connection (mixed-content block on ws://)
-
-DeviceMotion permission gate
-    → Sensor minigame on groom's iPhone (not Android)
-
-Exponential backoff reconnect (Phase 01)
-    → Screen lock recovery
-    → Railway 30s proxy timeout recovery
-
-Full-state snapshot on reconnect (Phase 01)
-    → Late joiner chapter state restoration
-    → Token balance restoration after reconnect
-
-Admin chapter unlock broadcast
-    → Groom view router (minigame/scavenger/reward routing)
-    → Party recap overlay
-
-Token balance server authority
-    → Power-up / sabotage spend
-    → Multi-tap earn race condition handling
+Import (upload)
+    ──reads──> file picker (FileReader API)
+    ──validation──> JSON.parse + optional schema check
+    ──confirmation──> window.confirm()
+    ──applies via──> existing SAVE_SETUP WebSocket message
+        └──requires──> game phase === "lobby" (server enforces this already)
+        └──broadcasts──> STATE_SYNC to all connected clients
+        └──triggers──> $gameState reactive update in setup page
+            └──$effect restoredFromState guard must be reset to allow re-render
 ```
 
----
+### Dependency Notes
 
-## MVP Test Sequence Recommendation
-
-Run in this order to catch blockers early before burning time on polish issues.
-
-1. **Deployment smoke test** — Admin opens the live Railway URL on PC. Zero local environment. Verify no console errors, WS connects, code generated.
-2. **Three-device join** — Groom and one party member join via phone. Verify all three see the correct view for their role.
-3. **Chapter unlock broadcast** — Admin unlocks Chapter 1. Verify all three devices update within 2 seconds.
-4. **Trivia on groom phone** — Complete one trivia question. Verify score appears on admin view.
-5. **Sensor minigame on groom phone** — iOS permission gate, tilt to win. This is the highest-risk scenario.
-6. **Power-up from party phone** — Spend a token. Verify effect on groom view and admin score.
-7. **Screen lock recovery** — Lock groom's phone for 15 seconds. Verify reconnect and state restore.
-8. **Full chapter run** — Admin progresses through at least two full chapters end-to-end.
-
-Defer to second pass: haptic feel, font size on Android, portrait lock edge cases.
+- **Import requires SAVE_SETUP:** No new server handler. The existing `SAVE_SETUP` WebSocket message already accepts `{ chapters, powerUpCatalog, startingTokens }` and broadcasts state. Import just pre-populates that payload from a file.
+- **Import requires restoredFromState reset:** The setup page guards against overwriting form state after the first `$gameState` sync (`restoredFromState` flag). On import, the local state is set directly from the parsed file — this bypasses the guard, which is correct. But if the intent is to also trigger a server round-trip and then re-sync, the guard must be reset so the next `STATE_SYNC` can update the form.
+- **Export has no dependencies** beyond `$gameState` being populated. It works even if no WebSocket connection is active (reads last-known reactive state).
+- **SAVE_SETUP is lobby-only:** Server rejects setup changes after game starts. Export should be available at any time (it is read-only), but import button should be disabled or hidden once `$gameState.phase !== 'lobby'`.
 
 ---
 
-## Validation Checklist
+## MVP Definition
 
-- [ ] WS URL uses `wss://` in production build (not `ws://`)
-- [ ] Server reads PORT from environment variable (not hardcoded)
-- [ ] DeviceMotionEvent.requestPermission called only inside user gesture handler
-- [ ] DeviceMotion data access guarded against `undefined` when permission denied
-- [ ] `navigator.vibrate` guarded with `'vibrate' in navigator` before calling
-- [ ] All game buttons have `touch-action: manipulation` or viewport sets `width=device-width`
-- [ ] Memory game flip guard based on JS state array, not DOM class
-- [ ] Android back button does not pop user out of active game session
-- [ ] Full-state snapshot on reconnect includes tokenBalances per-player
-- [ ] Reconnect handler clears previous backoff timer before starting new one
-- [ ] Late joiner receives current chapter state immediately on connect
-- [ ] Railway 30s proxy timeout: heartbeat ping/pong interval under 25 seconds OR custom domain configured
-- [ ] Safe area insets applied for iPhone notch / home indicator
-- [ ] Admin role restored correctly on tab refresh / reconnect
+### Launch With (v1.2)
+
+Minimum viable product for this milestone — what is needed for an admin to save and reuse a game config.
+
+- [ ] Export button on `/admin/setup` — downloads current chapters + powerUpCatalog + startingTokens as `octapp-setup.json`
+- [ ] Import button on `/admin/setup` — opens file picker, reads `.json` file, shows confirm dialog, calls SAVE_SETUP
+- [ ] Error message on parse failure (invalid JSON or missing required fields)
+- [ ] Success flash on successful import (reuse existing saveFlash pattern)
+- [ ] Import button disabled when game phase is not "lobby"
+
+### Add After Validation
+
+- [ ] Schema validation with field-level messages — add once an admin reports a confusing error
+- [ ] Preview count in confirm dialog ("Import 3 chapters, 4 power-ups?") — low effort, high trust
+
+### Future Consideration (v2+)
+
+- [ ] Export with session code in filename — only useful if running multiple events; premature now
+- [ ] Import from URL — requires significant infrastructure; out of scope for this app
+
+---
+
+## Feature Prioritization Matrix
+
+| Feature | User Value | Implementation Cost | Priority |
+|---------|------------|---------------------|----------|
+| Export to file | HIGH | LOW | P1 |
+| Import from file + SAVE_SETUP | HIGH | LOW | P1 |
+| Confirmation dialog | HIGH (destructive action) | LOW | P1 |
+| Error on bad JSON | HIGH | LOW | P1 |
+| Success flash | MEDIUM | LOW (reuse existing) | P1 |
+| Disable import in active game | MEDIUM | LOW | P1 |
+| Preview count in confirm | MEDIUM | LOW | P2 |
+| Schema validation with field errors | MEDIUM | MEDIUM | P2 |
+| Filename with session code | LOW | LOW | P3 |
+
+---
+
+## Mobile Browser Behavior Notes
+
+These are production-critical because the admin uses the app from a phone or from a device that may differ from desktop.
+
+**Export on iOS Safari:**
+- `<a download="filename.json">` with a blob URL works on iOS Safari 13+. The file is saved to the Downloads folder (Files app).
+- Do NOT use the File System Access API (`window.showSaveFilePicker`) — Safari does not support it as of 2025.
+- Programmatically creating and clicking a hidden anchor element is the correct approach. This is synchronous and does not require a user gesture beyond the button click that triggers the function.
+
+**Import on iOS Safari:**
+- `<input type="file" accept=".json,application/json">` works on iOS Safari and Android Chrome.
+- The input must be hidden (`display:none` or `visibility:hidden`) and triggered by clicking a styled label or a button that calls `input.click()`. This counts as a user gesture.
+- Do NOT call `input.click()` from inside an async function that was not itself triggered synchronously by a user gesture — iOS Safari will block it.
+- `FileReader.readAsText()` is fully supported on all target browsers.
+- After reading, `JSON.parse()` the result string. Wrap in try/catch.
+
+**Confirm dialog on mobile:**
+- `window.confirm()` produces the OS-native modal on iOS and Android. It blocks the thread and returns a boolean. It is perfectly suitable for an admin-only destructive action. No third-party modal library is needed.
+
+---
+
+## Integration with Existing SAVE_SETUP Flow
+
+The import path must map exactly to the existing `SAVE_SETUP` message shape:
+
+```typescript
+// Existing ClientMessage type (src/lib/types.ts)
+{ type: "SAVE_SETUP"; chapters: Chapter[]; powerUpCatalog: PowerUp[]; startingTokens: number }
+
+// Server handler enforces: phase === "lobby" before applying
+// Server response: STATE_SYNC broadcast to all clients
+```
+
+The import function should:
+1. Parse the JSON file
+2. Validate minimally (array fields present, non-empty chapters)
+3. Ask for confirmation
+4. Call `sendMessage({ type: "SAVE_SETUP", chapters, powerUpCatalog, startingTokens })`
+5. The existing `$effect` that restores form state from `$gameState` will update the UI on the next `STATE_SYNC`
+
+The export function should read directly from the Svelte reactive state (`chapters`, `powerUpCatalog`, `startingTokens`) — not from `$gameState` — so the exported file reflects what is currently in the form, even if Save Setup has not been clicked. This is the most intuitive behavior: "export what I see."
 
 ---
 
 ## Sources
 
-- Railway WebSocket timeout behavior: https://station.railway.com/questions/web-socket-connection-issues-in-producti-ec8d4a69
-- Railway HOST/PORT requirements: https://docs.railway.com/guides/sse-vs-websockets
-- iOS Safari screen lock WS disconnect: https://github.com/enisdenjo/graphql-ws/discussions/290
-- Safari 26 WebSocket CONNECT bug: https://www.jackpearce.co.uk/posts/debugging-websocket-upgrade-failures-safari-ios26/
-- DeviceMotionEvent.requestPermission iOS 13+: https://dev.to/li/how-to-requestpermission-for-devicemotion-and-deviceorientation-events-in-ios-13-46g2
-- iOS touch-action 300ms delay: https://developer.chrome.com/blog/300ms-tap-delay-gone-away
-- Vibration API iOS absence: https://blog.openreplay.com/haptic-feedback-for-web-apps-with-the-vibration-api/
-- Real device vs Chrome DevTools gaps: https://dev.to/bhawana127/chrome-simulation-vs-real-device-cloud-testing-1bhg
-- WebSocket reconnect state sync: https://websocket.org/guides/reconnection/
-- Double-tap iOS Safari fix: https://medium.com/@kristiantolleshaugmrch/fixing-the-double-tap-issue-in-ios-safari-with-javascript-4e72a18a1feb
+- MDN: `<input type="file">` accept attribute — https://developer.mozilla.org/en-US/docs/Web/HTML/Element/input/file
+- MDN: HTML attribute `accept` — https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes/accept
+- Blob + anchor download (cross-browser) — https://blog.logrocket.com/programmatically-downloading-files-browser/
+- iOS Safari `<a download>` support — https://bugs.webkit.org/show_bug.cgi?id=167341
+- File System Access API: Safari does not support — https://developer.chrome.com/docs/capabilities/browser-fs-access
+- Import/export UX trust patterns — https://medium.com/@careful_celadon_goldfish_904/building-import-export-that-doesnt-break-user-trust-202099fd99a5
+- FileSaver.js iOS Safari limitations — https://github.com/eligrey/FileSaver.js/issues/375
+
+---
+
+*Feature research for: JSON config import/export — octapp v1.2*
+*Researched: 2026-04-13*

@@ -1,234 +1,359 @@
-# Architecture: Bun WebSocket + Railway Proxy Integration
+# Architecture Research
 
-**Project:** octapp (bachelor party game)
-**Researched:** 2026-04-10
-**Scope:** Railway production environment integration for Bun WebSocket + SvelteKit static
-
----
-
-## Railway Proxy Layer: What It Does to Your Connections
-
-Railway sits a reverse proxy in front of every service. All inbound traffic hits Railway's edge, which terminates TLS, then forwards to your container over plain HTTP/1.1 (or WebSocket over HTTP/1.1). Your Bun process never sees raw TLS — it receives already-decrypted connections.
-
-**Confirmed behaviors (HIGH confidence — from Railway docs Specs & Limits page):**
-
-| Behavior | Value | Implication for octapp |
-|----------|-------|----------------------|
-| TLS termination | At Railway edge | Bun receives `ws://` internally, clients use `wss://` |
-| Max connection duration | 15 minutes | WebSocket sessions are force-closed at 15 min; client reconnect handles it |
-| Proxy Keep-Alive idle timeout | 60 seconds | Any WebSocket silent for 60s is dropped by the proxy |
-| Max concurrent connections | 10,000 per service | Not a concern for 5–10 player sessions |
-| Max requests per second | 11,000 per domain | Not a concern |
-| WebSocket protocol | HTTP/1.1 Upgrade only | Bun's WebSocket implementation uses HTTP/1.1 — compatible |
-| TLS versions enforced | TLS 1.2 and TLS 1.3 | Handled entirely by Railway edge; Bun does not configure TLS |
-
-**Proxy headers Railway injects on every request:**
-
-```
-X-Real-IP           — client's actual remote IP
-X-Forwarded-Proto   — always "https" (even for WebSocket upgrades)
-X-Forwarded-Host    — original hostname from the client
-X-Railway-Edge      — edge region identifier
-X-Request-Start     — Unix millisecond timestamp
-X-Railway-Request-Id — per-request correlation ID
-```
-
-These headers arrive at Bun's `fetch()` handler before the WebSocket upgrade occurs. `X-Forwarded-Proto` will be `"https"` not `"wss"` — Railway's proxy normalizes it to `https` for both HTTP and WebSocket connections.
+**Domain:** JSON config import/export in a SvelteKit 5 + Bun WebSocket app
+**Researched:** 2026-04-13
+**Confidence:** HIGH — analysis is fully grounded in the existing codebase; no external library decisions needed
 
 ---
 
-## PORT and HOST Binding
+## Standard Architecture
 
-**The critical requirement:** Railway requires applications to bind on `0.0.0.0:$PORT`. Binding to `127.0.0.1` or `localhost` only is a deployment failure — Railway's proxy cannot reach a container bound to loopback only.
+### System Overview
 
-**Bun.serve default behavior (HIGH confidence — from Bun official docs):**
-
-Bun.serve binds to `0.0.0.0` by default when no `hostname` is specified. The current `server/index.ts` does not set `hostname`, so it inherits `0.0.0.0` automatically. This is correct for Railway.
-
-**Current PORT handling in `server/index.ts`:**
-
-```ts
-port: Number(process.env.PORT ?? 3000),
+```
+┌───────────────────────────────────────────────────────────────────┐
+│  Browser (Admin)  /admin/setup page                               │
+│                                                                   │
+│  ┌───────────────────────────────────────────────────────────┐    │
+│  │  Setup Form State ($state runes)                          │    │
+│  │  chapters: Chapter[]  powerUpCatalog: PowerUp[]           │    │
+│  │  startingTokens: number                                   │    │
+│  └───────────────┬───────────────────────────────────────────┘    │
+│                  │                                                 │
+│        ┌─────────┴──────────┐                                     │
+│        │                    │                                     │
+│  ┌─────▼──────┐    ┌────────▼────────┐                            │
+│  │  EXPORT    │    │  IMPORT         │                            │
+│  │  (button)  │    │  (file input)   │                            │
+│  │            │    │                 │                            │
+│  │  serialize │    │  parse JSON     │                            │
+│  │  form →    │    │  → validate     │                            │
+│  │  download  │    │  → populate     │                            │
+│  │  .json     │    │    form state   │                            │
+│  └────────────┘    └────────┬────────┘                            │
+│   (no server)               │  admin reviews, clicks Save         │
+│                             │  sendMessage(SAVE_SETUP) (reused)   │
+└─────────────────────────────┼───────────────────────────────────── ┘
+                              │ WebSocket /ws
+┌─────────────────────────────▼─────────────────────────────────────┐
+│  Bun WebSocket Server  server/handlers.ts                          │
+│                                                                    │
+│  handleMessage → SAVE_SETUP handler (unchanged)                    │
+│    setState({ chapters, powerUpCatalog, startingTokens })          │
+│    broadcastState(server) → STATE_SYNC to all clients              │
+└────────────────────────────────────────────────────────────────────┘
 ```
 
-Railway injects `PORT` at runtime. The Dockerfile also sets `ENV PORT=3000` as a fallback for local runs. This pattern is correct — Railway's injected `PORT` takes precedence over the Dockerfile default at runtime.
+### Component Responsibilities
 
-**No `hostname` override needed.** The current code omits `hostname` which correctly defaults to `0.0.0.0`.
+| Component | Responsibility | Implementation |
+|-----------|----------------|----------------|
+| Export button | Serialize current form state to JSON and trigger browser download | Pure browser — `URL.createObjectURL` on a `Blob`; no server involvement |
+| Import file input | Accept a `.json` file, parse and validate it, populate form state | Pure browser — `file.text()`; validates against known shape before populating |
+| `sendMessage(SAVE_SETUP)` | Push imported config to server after admin confirms | Reuses existing wire message; no new message type needed |
+| `handleMessage` in `handlers.ts` | Merge incoming setup into `gameState` and broadcast | Unchanged — existing SAVE_SETUP handler already accepts `chapters + powerUpCatalog + startingTokens` |
 
 ---
 
-## TLS Termination: What It Means for WebSocket Clients
+## Export: Browser-Only (Recommended)
 
-Railway terminates TLS at the edge. The flow is:
+**Verdict:** Export must be client-side only. No server round-trip is needed or appropriate.
 
-```
-Client browser
-  |-- wss://your-app.railway.app/ws  (TLS encrypted, port 443)
-  |
-Railway Edge (TLS termination)
-  |-- ws://container:PORT/ws  (plain HTTP/1.1 Upgrade, unencrypted internally)
-  |
-Bun.serve on 0.0.0.0:PORT
-```
+**Why:** The admin setup page holds full live form state in Svelte 5 `$state` variables (`chapters`, `powerUpCatalog`, `startingTokens`). These are the canonical source for what the admin intends to save. They are populated from `$gameState` on first sync (see `restoredFromState` guard in the existing page), then diverge as the admin edits. A server export would serialize the last-saved server state, missing any unsaved edits in the form.
 
-**Implication for the client-side WebSocket URL:** The SvelteKit frontend must construct the WebSocket URL using `wss://` when running in production (since `window.location.protocol` will be `https:`), and `ws://` in local dev. The current client code should derive the scheme from `window.location.protocol`:
+**Export shape:**
 
-```ts
-const scheme = window.location.protocol === "https:" ? "wss" : "ws";
-const wsUrl = `${scheme}://${window.location.host}/ws`;
+```typescript
+type GameConfig = {
+  version: 1;                  // forward-compatibility sentinel
+  chapters: Chapter[];         // stripped of runtime fields (see below)
+  powerUpCatalog: PowerUp[];
+  startingTokens: number;
+};
 ```
 
-If the client currently hardcodes `ws://` or always uses `wss://`, verify this construction. Using `wss://` against Railway's `https:` domain is correct. Using `ws://` against an `https:` domain will be blocked by browsers as a mixed-content violation.
+**Runtime fields to strip on export:** `Chapter` includes three server-only runtime fields — `servedQuestionIndex`, `minigameDone`, `scavengerDone`. These are meaningless in a saved config file; they will be reset by `UNLOCK_CHAPTER` anyway. Strip them before serializing so the exported JSON is clean and portable.
 
-**Bun does not need TLS configuration.** No `tls:` block in `Bun.serve` is needed or wanted — Railway handles certificates entirely.
+**Data flow — Export:**
+
+```
+Admin clicks "Export Config"
+  → serializeConfig(chapters, powerUpCatalog, startingTokens)
+      strips runtime fields from each Chapter
+      wraps in { version: 1, chapters, powerUpCatalog, startingTokens }
+  → JSON.stringify(payload, null, 2)
+  → new Blob([json], { type: "application/json" })
+  → URL.createObjectURL(blob)
+  → programmatic <a download="game-config.json"> click
+  → browser saves file
+  → URL.revokeObjectURL(url)          ← always clean up to avoid memory leaks
+```
+
+No server call. No WebSocket message. Entirely synchronous after the button click.
 
 ---
 
-## The 60-Second Idle Timeout: Critical for Gameplay
+## Import: Client-Side Parse + Reuse SAVE_SETUP (Recommended)
 
-This is the most operationally significant Railway constraint for octapp.
+**Verdict:** Import parses the file in the browser, populates form state, then the admin's existing "Save Setup" button sends the data to the server via the existing `SAVE_SETUP` message. A new `LOAD_CONFIG` WebSocket message is not needed and would add complexity with no benefit.
 
-**What happens:** Railway's proxy drops any WebSocket connection where no data frames have been sent or received for 60 consecutive seconds. The client's WebSocket `onclose` fires. Without reconnect logic, the player's session dies silently mid-game.
+**Why not a new LOAD_CONFIG message?**
+- The server's `SAVE_SETUP` handler already does exactly what's needed: validates phase (lobby only), merges chapters/powerUpCatalog/startingTokens into `gameState`, broadcasts.
+- Adding `LOAD_CONFIG` would duplicate handler logic, adding a new union member to `IncomingMessage` in `handlers.ts` and `ClientMessage` in `types.ts` — for no behavioral gain.
+- Keeping one "write setup" message preserves the invariant that the admin reviews the loaded config in the form before it goes live on the server.
 
-**What octapp currently does:** `server/index.ts` already implements a server-side heartbeat:
+**Data flow — Import:**
 
-```ts
-// Server-side heartbeat every 30s to prevent Railway 60s idle timeout (SYNC-03)
-setInterval(() => {
-  server.publish("game", JSON.stringify({ type: "PING", ts: Date.now() }));
-}, 30_000);
+```
+Admin taps "Import Config" → <input type="file" accept=".json">
+  → file.text()
+  → JSON.parse(rawText)
+  → validateConfig(parsed)
+      checks: version === 1
+      checks: chapters is array, powerUpCatalog is array, startingTokens is number
+      checks: each Chapter has required string fields
+      returns { ok: true, config } | { ok: false, error: string }
+  → if valid:
+      chapters = config.chapters.map(ch => ({
+        ...ch,
+        servedQuestionIndex: null,     ← always reset
+        minigameDone: false,           ← always reset
+        scavengerDone: false,          ← always reset
+      }));
+      powerUpCatalog = config.powerUpCatalog;
+      startingTokens = config.startingTokens;
+      restoredFromState = true;        ← CRITICAL: prevents $gameState effect from overwriting
+      show import success flash
+  → admin reviews populated form, clicks "Save Setup"
+      → sendMessage({ type: "SAVE_SETUP", chapters, powerUpCatalog, startingTokens })
+      → server merges, broadcasts STATE_SYNC
+  → if invalid:
+      show inline error: "Invalid config file"
 ```
 
-This publishes a `PING` message to the `"game"` topic every 30 seconds. Every connected client subscribed to `"game"` receives this frame, which resets Railway's proxy idle timer. **This is the correct approach.** The 30-second interval provides a 30-second margin before the 60-second proxy timeout.
-
-**Remaining gap:** The `PING` message only reaches clients subscribed to the `"game"` topic via `server.publish`. Verify that all connected WebSocket clients subscribe to `"game"` during `handleOpen`. If a client connects but hasn't joined a session yet (e.g., still on the join screen), they may not be subscribed to `"game"` and won't receive the heartbeat — they could be dropped after 60 seconds of inactivity on the join screen.
-
-**Client-side PING handling:** The client should either silently discard `PING` messages or respond with a `PONG` frame. Most proxy idle timers reset on either direction of traffic. Discarding silently is fine — the server-to-client PING frame itself resets the proxy timer.
+**Two-step review model:** The loaded config populates the form but does not auto-send to the server. The admin can inspect and edit before saving. This matches how SAVE_SETUP already works (fill form, press Save). It also means accidental wrong-file imports are recoverable — the admin can just re-import or edit before committing.
 
 ---
 
-## The 15-Minute Hard Cutoff: Reconnect Is Not Optional
+## Recommended Project Structure Changes
 
-Railway force-closes all WebSocket connections at 15 minutes regardless of activity. This is not a bug — it is documented platform behavior.
-
-**What octapp already has:** Client-side reconnect with exponential backoff and full-state snapshot on reconnect (validated in Phase 01: Foundation, confirmed in PROJECT.md requirements).
-
-**What the full-state-on-reconnect design buys you:** When Railway severs the connection at 15 minutes, the client reconnects, re-sends its session code, and receives the current full game state. From the player's perspective, the game resumes in under a second. This architecture already handles the Railway constraint correctly.
-
-**Bun `idleTimeout: 120` in the websocket config:** This is the Bun-level application timeout (120 seconds). The Railway proxy timeout (60 seconds) is shorter, so in practice the Railway proxy will drop idle connections before Bun's own idle timeout triggers. The server-side heartbeat prevents both from firing during active sessions. The Bun `idleTimeout` acts as a backstop to clean up connections Railway has already dropped.
-
----
-
-## Session State: In-Memory Is Acceptable, With Awareness
-
-The game's session state (game progress, scores, chapter state) lives entirely in Bun process memory. This is appropriate for this use case with the following understanding:
-
-**What a Railway redeploy does:** Any new Railway deployment (code push, config change, manual restart) starts a fresh Bun process. In-memory state is wiped. All connected clients are disconnected and receive a `close` event. Their reconnect logic fires, they re-connect to the new process, but `getSession(sessionCode)` returns `undefined` — the session is gone.
-
-**Risk profile for octapp:** The game is played over a single night. If Railway redeploys mid-game (e.g., due to a crash and restart), the session resets. For a one-time event this is a meaningful risk — a crash mid-game loses all game progress.
-
-**Railway restart policy in `railway.toml`:**
-```toml
-restartPolicyType = "on-failure"
-restartPolicyMaxRetries = 3
+```
+src/
+├── lib/
+│   ├── configSerializer.ts   ← NEW: serializeConfig(), validateConfig(), GameConfig type
+│   ├── types.ts              ← MODIFIED: re-export GameConfig from configSerializer
+│   └── socket.ts             ← unchanged
+└── routes/
+    └── admin/
+        └── setup/
+            └── +page.svelte  ← MODIFIED: export button, import file input, flash states
+server/
+├── handlers.ts               ← unchanged
+└── state.ts                  ← unchanged
 ```
 
-This restarts on crash, not on success. Deliberate deploys (code pushes) still cause a restart. The risk window is: an unhandled exception crashes the server mid-game.
+**Why a separate `configSerializer.ts`?**
 
-**Mitigation recommendation (not blocking for MVP):** Add a top-level `process.on("uncaughtException")` handler with logging to prevent crashes from unhandled rejections. This reduces the restart risk during a live game session.
+Serialization and validation are pure-function territory (no DOM, no WebSocket). Isolating them makes independent unit testing possible and keeps `+page.svelte` focused on UI concerns. The `GameConfig` type lives here as the single definition.
 
 ---
 
-## Component Map: New vs. Modified
+## Architectural Patterns
 
-### No New Components Required
+### Pattern 1: Client-Side File Download
 
-The current architecture (Bun.serve single-port HTTP + WebSocket + static files) is fully compatible with Railway's proxy model. No separate nginx sidecar, no separate static file CDN, no load balancer config is needed.
+**What:** Serialize data to a `Blob`, generate an object URL, trigger a synthetic anchor click, revoke the URL.
+**When to use:** Any time the user needs to download a file generated from in-browser state with no server involvement required.
+**Trade-offs:** Works on all modern browsers including iOS Safari. Object URL must be revoked to avoid memory leaks. Zero fetch, zero backend route.
 
-### Verified Compatible (No Changes Required)
+```typescript
+function downloadJson(payload: unknown, filename: string): void {
+  const json = JSON.stringify(payload, null, 2);
+  const blob = new Blob([json], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+```
 
-| Component | Status | Reason |
+### Pattern 2: File Input + file.text()
+
+**What:** An `<input type="file" accept=".json">` that reads the selected file as text via `file.text()` (Promise-based, supported in all modern browsers including iOS Safari 14.1+).
+**When to use:** Any time the user needs to load a local file into browser state without a server upload.
+**Trade-offs:** `accept=".json"` filters the picker but is advisory — always validate the parsed content regardless.
+
+```typescript
+async function handleFileInput(e: Event): Promise<void> {
+  const file = (e.target as HTMLInputElement).files?.[0];
+  if (!file) return;
+  const text = await file.text();
+  const result = validateConfig(JSON.parse(text));
+  // populate form or show error
+}
+```
+
+### Pattern 3: Reuse SAVE_SETUP Rather Than Add a New Message
+
+**What:** After import populates form state, the existing `saveSetup()` function (which calls `sendMessage({ type: "SAVE_SETUP", ... })`) handles the server write. No new message type or handler.
+**When to use:** Any time new client functionality maps cleanly onto an existing server message — no new handler needed.
+**Trade-offs:** Simpler server (no new handler, no new union member). The two-step model (import → review → save) is safer than auto-sending on import.
+
+---
+
+## Data Flow
+
+### Export Flow
+
+```
+Admin clicks "Export Config"
+    ↓
+serializeConfig(chapters, powerUpCatalog, startingTokens)
+    ↓ strips runtime fields (servedQuestionIndex, minigameDone, scavengerDone)
+    ↓ adds { version: 1 }
+downloadJson(config, "game-config.json")
+    ↓ Blob → object URL → synthetic <a> click → revoke
+Browser saves file to disk
+    ↓
+[End — no server involvement]
+```
+
+### Import Flow
+
+```
+Admin selects .json file via <input type="file">
+    ↓
+file.text() → JSON.parse()
+    ↓
+validateConfig(parsed)
+    ├── invalid → show error flash, abort
+    └── valid →
+         populate chapters, powerUpCatalog, startingTokens ($state runes)
+         reset runtime fields on each Chapter
+         set restoredFromState = true             ← prevents $effect overwrite
+         show import success flash
+              ↓
+Admin reviews form, clicks "Save Setup"
+    ↓
+sendMessage({ type: "SAVE_SETUP", chapters, powerUpCatalog, startingTokens })
+    ↓ WebSocket
+server handleMessage → SAVE_SETUP handler (unchanged)
+    ↓
+setState({ chapters, powerUpCatalog, startingTokens }) → broadcastState
+    ↓
+STATE_SYNC to all clients
+```
+
+---
+
+## Integration Points
+
+### With SAVE_SETUP (existing — unchanged)
+
+| Aspect | Detail |
+|--------|--------|
+| What SAVE_SETUP expects | `{ type: "SAVE_SETUP", chapters: Chapter[], powerUpCatalog: PowerUp[], startingTokens: number }` |
+| What import must produce | Same shape. Runtime fields are stripped on the client before populating form state; they are re-initialized by `UNLOCK_CHAPTER` on the server and never appear in SAVE_SETUP payloads. |
+| Phase guard already in place | Server rejects SAVE_SETUP when `state.phase !== "lobby"`. Import inherits this protection for free — no guard logic needed on the client. |
+
+### With `restoredFromState` guard (existing — critical interaction)
+
+The setup page has a `restoredFromState` flag (line 19, `+page.svelte`) that prevents `$gameState` from overwriting form state after first sync. The `$effect` watching `$gameState` only populates form fields when `!restoredFromState && gs.chapters.length > 0`.
+
+After import, this flag **must** be set to `true`. If it is not:
+- The admin saves the imported config (SAVE_SETUP fires)
+- Server merges and broadcasts STATE_SYNC
+- The incoming STATE_SYNC triggers the `$effect`
+- Because `restoredFromState` is still `false`, the effect overwrites the just-imported form values with what was previously on the server
+
+This is a silent correctness bug. Setting `restoredFromState = true` immediately after populating form state from an import prevents it.
+
+### Internal Boundaries
+
+| Boundary | Communication | Notes |
+|----------|---------------|-------|
+| `configSerializer.ts` ↔ `+page.svelte` | Direct import (pure functions) | No reactive stores needed; serializer is stateless |
+| `+page.svelte` ↔ server | `sendMessage(SAVE_SETUP)` via `socket.ts` | Unchanged from current save flow |
+| `types.ts` ↔ `configSerializer.ts` | `GameConfig` type defined in `configSerializer.ts`, re-exported via `types.ts` | One definition; consistent with existing pattern of `types.ts` as the shared type surface |
+
+---
+
+## New vs Modified Components
+
+| Component | Status | Change |
 |-----------|--------|--------|
-| `Bun.serve` port binding | Compatible | Defaults to `0.0.0.0`; `PORT` from env |
-| `/health` endpoint | Compatible | Already implemented; `railway.toml` references it |
-| TLS configuration | Not needed | Railway edge handles TLS entirely |
-| Heartbeat interval (30s) | Compatible | Correct for 60s proxy idle timeout |
-| Client reconnect + full-state | Compatible | Handles both 15-min cutoff and crash restarts |
-| Dockerfile multi-stage build | Compatible | Copies `build/` and `server/` correctly |
-| `ADMIN_TOKEN` env var gate | Compatible | Railway env vars injected at runtime |
-
-### Must Verify Before Deploying
-
-| Item | Check | Risk if Wrong |
-|------|-------|---------------|
-| Client WebSocket URL construction | Uses `wss://` when `location.protocol === "https:"` | Mixed-content browser block; no WebSocket connection in production |
-| `handleOpen` subscribes all clients to `"game"` topic | Check `handlers.ts` | Clients not subscribed miss heartbeat PING; idle-dropped after 60s on join screen |
-| `ADMIN_TOKEN` set in Railway env vars | Set via Railway dashboard | Admin login returns 401 in production |
-| `PORT` not hardcoded in Railway service settings | Railway injects dynamically | Port conflict or server not reachable |
-
-### Should Add (Low Effort, Meaningful Safety)
-
-| Item | Why | Where |
-|------|-----|-------|
-| `process.on("uncaughtException", ...)` | Prevents silent crashes mid-game; logs the error | `server/index.ts` |
-| Client-side PING discard | Prevents PING frames from being treated as unknown message types | Client WebSocket message handler |
+| `src/lib/configSerializer.ts` | New | `serializeConfig()`, `validateConfig()`, `GameConfig` type |
+| `src/lib/types.ts` | Modified | Re-export `GameConfig` from `configSerializer.ts` |
+| `src/routes/admin/setup/+page.svelte` | Modified | Export button + handler, import file input + async handler, import flash state, `restoredFromState` interaction |
+| `server/handlers.ts` | Unchanged | SAVE_SETUP handler covers import without modification |
+| `server/state.ts` | Unchanged | `GameState` shape unchanged |
+| `src/lib/types.ts` → `ClientMessage` | Unchanged | No new WebSocket message type needed |
 
 ---
 
-## Deploy Order
+## Build Order
 
-Railway deploys a single service. There is no multi-service dependency graph. The correct sequence:
+1. **`src/lib/configSerializer.ts` (new)** — Define `GameConfig` type, implement `serializeConfig()` and `validateConfig()`. These are pure functions with no UI dependency; can be written and unit-tested in isolation before touching any UI.
+2. **`src/lib/types.ts` update** — Re-export `GameConfig`. One-line change.
+3. **Export button in `+page.svelte`** — Wire up `serializeConfig` and `downloadJson`. Additive change only; does not touch any existing logic or state.
+4. **Import file input in `+page.svelte`** — Add `<input type="file">`, async parse handler, form state population, `restoredFromState` flag set, import flash state. This is the only step that requires care around the `restoredFromState` interaction.
+5. **End-to-end test** — Export a live config, reload the page, import the file, verify form populates correctly, save, verify server state matches via a second browser tab.
 
-1. Set environment variables in Railway dashboard (`ADMIN_TOKEN`, leave `PORT` to Railway)
-2. Connect GitHub repo to Railway service
-3. Railway builds using the Dockerfile (multi-stage: build SvelteKit → copy to slim runner)
-4. Railway runs `bun run server/index.ts` (CMD in Dockerfile)
-5. Railway proxy routes public HTTPS/WSS traffic to container port
-
-No migration step, no seed step, no separate process required.
+Steps 1–2 are independent of the app running. Step 3 can be verified before step 4 is written.
 
 ---
 
-## Data Flow: Production vs. Local Dev
+## Anti-Patterns
 
-```
-LOCAL DEV:
-  Browser → ws://localhost:3000/ws → Bun.serve (no proxy, no TLS)
+### Anti-Pattern 1: Adding a LOAD_CONFIG WebSocket Message
 
-RAILWAY PRODUCTION:
-  Browser → wss://app.railway.app/ws (TLS, port 443)
-    → Railway Edge (TLS termination)
-    → ws://container:$PORT/ws (HTTP/1.1 Upgrade, no TLS)
-      → Bun.serve websocket handler
-        → handleOpen / handleMessage / handleClose
-          → in-memory session state
-            → server.publish("game", ...) → all subscribed clients
-```
+**What people do:** Create a new `LOAD_CONFIG` server message that directly loads a JSON payload into `gameState`, bypassing the form review step.
+**Why it's wrong:** Duplicates the SAVE_SETUP handler. Removes the admin review step (silent overwrites of a running game become possible). Adds a new union member to `IncomingMessage`, `ClientMessage`, and `ServerMessage` — all for zero behavioral gain.
+**Do this instead:** Parse and validate in the browser, populate form state, send existing SAVE_SETUP.
 
-The data flow through the application layer is identical. The only structural difference is the TLS termination layer inserted by Railway. Bun receives plain WebSocket frames in both environments.
+### Anti-Pattern 2: Round-Tripping Export Through the Server
+
+**What people do:** Add a server route (`GET /api/admin/config`) that serializes `gameState` and returns it as JSON.
+**Why it's wrong:** The form state is the authoritative export source — unsaved edits live in the browser, not in `gameState`. Exporting from the server would silently export the last saved state, not the current form. Also adds a server route, an auth check, and a fetch call for no benefit.
+**Do this instead:** Serialize directly from `$state` variables in the browser.
+
+### Anti-Pattern 3: Auto-Sending to Server on Import Without Review
+
+**What people do:** After parsing the file, immediately call `sendMessage(SAVE_SETUP)` without letting the admin review the populated form.
+**Why it's wrong:** Overwrites server state without confirmation. Imports the wrong file by accident — there is no undo; the game state is already replaced on the server.
+**Do this instead:** Populate form state, show the result, let the admin click "Save Setup" to commit.
+
+### Anti-Pattern 4: Forgetting `restoredFromState = true` After Import
+
+**What people do:** Populate `chapters`, `powerUpCatalog`, `startingTokens` from the imported file but omit setting `restoredFromState = true`.
+**Why it's wrong:** The next `STATE_SYNC` broadcast — which arrives within milliseconds of the admin saving — triggers the `$effect` that restores form state from `$gameState`. This silently overwrites the imported values with what was previously on the server.
+**Do this instead:** Always set `restoredFromState = true` immediately after populating form state from an import.
+
+### Anti-Pattern 5: Sending Runtime Fields in the Exported JSON
+
+**What people do:** Serialize `chapters` as-is, including `servedQuestionIndex`, `minigameDone`, `scavengerDone`.
+**Why it's wrong:** These fields are meaningless in a saved config file. They pollute the export, and if `minigameDone: true` or `scavengerDone: true` is imported and not reset, chapters could be treated as already-complete when the game starts.
+**Do this instead:** Always strip runtime fields in `serializeConfig()` before writing the JSON, and always reset them in the import handler before populating form state.
 
 ---
 
-## Confidence Assessment
+## Scaling Considerations
 
-| Area | Confidence | Source |
-|------|------------|--------|
-| 60s proxy idle timeout | HIGH | Railway Docs — Specs & Limits page (confirmed) |
-| 15-minute connection cutoff | HIGH | Railway Docs — SSE vs WebSocket guide (confirmed) |
-| TLS termination at edge | HIGH | Railway Docs — Specs & Limits page (confirmed) |
-| Bun defaults to 0.0.0.0 | HIGH | Bun official docs (confirmed) |
-| `X-Forwarded-Proto` = "https" | HIGH | Railway Docs — Specs & Limits page (confirmed) |
-| Heartbeat at 30s is sufficient | HIGH | 30s < 60s proxy timeout; well-established pattern |
-| In-memory state loss on restart | HIGH | Fundamental to how Railway deployments work |
-| 10,000 concurrent connection limit | HIGH | Railway Docs — Specs & Limits page (confirmed) |
+This is a one-time event app for 5-10 players. Scaling is not a concern for this feature. Import/export is a pure client-side file operation for export and a single WebSocket message for import — both have no meaningful overhead at any scale.
 
 ---
 
 ## Sources
 
-- [Railway Networking Specs & Limits](https://docs.railway.com/networking/public-networking/specs-and-limits) — proxy keep-alive timeout, TLS enforcement, connection limits, proxy headers
-- [Railway SSE vs WebSocket Guide](https://docs.railway.com/guides/sse-vs-websockets) — 15-minute connection duration limit, reconnect requirement
-- [Railway Public Networking Docs](https://docs.railway.com/public-networking) — HOST/PORT binding requirements
-- [Bun HTTP Server Docs](https://bun.com/docs/runtime/http/server) — Bun.serve defaults to 0.0.0.0
-- [Railway Bun WebSocket Game Server Template](https://railway.com/deploy/bun-websocket-game-server) — KEEPALIVE_MS pattern, /health endpoint pattern
-- [Railway Help Station — WebSocket connection issues](https://station.railway.com/questions/web-socket-connection-issues-in-producti-ec8d4a69) — community-reported production behavior
+- `server/handlers.ts` lines 135–153 — SAVE_SETUP handler; confirms exact expected message shape and lobby-only phase guard
+- `server/state.ts` — `Chapter` and `GameState` type definitions; runtime-only fields (`servedQuestionIndex`, `minigameDone`, `scavengerDone`) identified
+- `src/routes/admin/setup/+page.svelte` lines 18–30 — `restoredFromState` guard; the critical existing state interaction for import
+- `src/lib/types.ts` — `ClientMessage` union; confirms `SAVE_SETUP` accepts `chapters + powerUpCatalog + startingTokens`
+- `src/lib/socket.ts` — `sendMessage` helper; how the setup page communicates with the server
+
+---
+
+*Architecture research for: JSON import/export (octapp v1.2 milestone)*
+*Researched: 2026-04-13*
