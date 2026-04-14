@@ -19,7 +19,7 @@ All 7 phases complete. Full phase details, plans, and requirements in the milest
 
 **Milestone Goal:** Let admins export and import full game configs as JSON files so a setup can be saved, shared, and reused across events. Zero new server changes, zero new WebSocket message types.
 
-- [ ] **Phase 8: Config Serializer** - Pure TypeScript module establishing the GameConfig type and serialization/validation contract
+- [x] **Phase 8: Config Serializer** - Pure TypeScript module establishing the GameConfig type and serialization/validation contract (completed 2026-04-14)
 - [ ] **Phase 9: Export** - Admin can download current game setup as a JSON file, including iOS Safari fallback
 - [ ] **Phase 10: Import + E2E Verification** - Admin can load a config file into the setup form, with validation, confirmation, and end-to-end verification
 
@@ -37,7 +37,7 @@ All 7 phases complete. Full phase details, plans, and requirements in the milest
 **Plans**: 1 plan
 
 Plans:
-- [ ] 08-01-PLAN.md — GameConfig type + serializeConfig + validateConfig + types.ts re-export
+- [x] 08-01-PLAN.md — GameConfig type + serializeConfig + validateConfig + types.ts re-export
 
 ### Phase 9: Export
 **Goal**: Admin can download the current game setup as a JSON file from /admin/setup, and the download works on both desktop and iOS Safari
@@ -74,6 +74,6 @@ Plans:
 | 5. Railway Deploy & Smoke Test | v1.1 | 4/4 | Complete | 2026-04-13 |
 | 6. Three-Device Validation | v1.1 | 4/4 | Complete | 2026-04-13 |
 | 7. Mobile Bug Fixes | v1.1 | 4/4 | Complete | 2026-04-13 |
-| 8. Config Serializer | v1.2 | 0/1 | Not started | - |
+| 8. Config Serializer | v1.2 | 1/1 | Complete   | 2026-04-14 |
 | 9. Export | v1.2 | 0/? | Not started | - |
 | 10. Import + E2E Verification | v1.2 | 0/? | Not started | - |

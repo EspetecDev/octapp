@@ -10,9 +10,9 @@
 
 ### Config Serializer
 
-- [ ] **SER-01**: System defines a `GameConfig` TypeScript type representing the exportable subset of game setup (chapters with trivia, scavenger clues, rewards; power-up catalog; starting tokens) — excluding runtime-only Chapter fields (`servedQuestionIndex`, `minigameDone`, `scavengerDone`)
-- [ ] **SER-02**: System provides a `serializeConfig(chapters, powerUpCatalog, startingTokens)` function that strips runtime fields and returns a `GameConfig` object
-- [ ] **SER-03**: System provides a `validateConfig(data: unknown)` function that checks the parsed JSON conforms to the `GameConfig` shape and returns a typed result or a descriptive error
+- [x] **SER-01**: System defines a `GameConfig` TypeScript type representing the exportable subset of game setup (chapters with trivia, scavenger clues, rewards; power-up catalog; starting tokens) — excluding runtime-only Chapter fields (`servedQuestionIndex`, `minigameDone`, `scavengerDone`)
+- [x] **SER-02**: System provides a `serializeConfig(chapters, powerUpCatalog, startingTokens)` function that strips runtime fields and returns a `GameConfig` object
+- [x] **SER-03**: System provides a `validateConfig(data: unknown)` function that checks the parsed JSON conforms to the `GameConfig` shape and returns a typed result or a descriptive error
 
 ### Export
 
