@@ -50,6 +50,13 @@
 
 | REQ-ID | Phase | Plan |
 |--------|-------|------|
-| SER-01, SER-02, SER-03 | TBD | TBD |
-| EXP-01, EXP-02, EXP-03 | TBD | TBD |
-| IMP-01, IMP-02, IMP-03, IMP-04 | TBD | TBD |
+| SER-01 | Phase 8 | TBD |
+| SER-02 | Phase 8 | TBD |
+| SER-03 | Phase 8 | TBD |
+| EXP-01 | Phase 9 | TBD |
+| EXP-02 | Phase 9 | TBD |
+| EXP-03 | Phase 9 | TBD |
+| IMP-01 | Phase 10 | TBD |
+| IMP-02 | Phase 10 | TBD |
+| IMP-03 | Phase 10 | TBD |
+| IMP-04 | Phase 10 | TBD |
