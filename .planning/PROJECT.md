@@ -55,6 +55,10 @@ The groom has a memorable, personalized gauntlet to run through his own bachelor
 - Admin can export full game setup as a JSON file — v1.2
 - Admin can import a JSON file to replace current setup entirely — v1.2
 
+### Validated in v1.2 (in progress)
+
+- ✓ `GameConfig` TypeScript type + `serializeConfig` + `validateConfig` as a pure isolated module — Phase 8
+
 ### Out of Scope
 
 - Native mobile app — web browser is sufficient; no install friction is the goal
@@ -115,4 +119,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-13 — v1.2 milestone started*
+*Last updated: 2026-04-14 — Phase 8 complete: GameConfig serializer module*
