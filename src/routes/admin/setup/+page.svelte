@@ -3,6 +3,7 @@
   import { page } from "$app/stores";
   import { gameState, sendMessage } from "$lib/socket.ts";
   import type { Chapter, TriviaQuestion, PowerUp } from "$lib/types.ts";
+  import { serializeConfig } from "$lib/configSerializer";
 
   // Auth state (identical pattern to /admin)
   let authorized = $state<boolean | null>(null); // null = loading
@@ -14,6 +15,8 @@
   let startingTokens = $state<number>(0);
   let saveFlash = $state(false);
   let saveFlashTimer: ReturnType<typeof setTimeout> | null = null;
+  let exportFlash = $state(false);
+  let exportFlashTimer: ReturnType<typeof setTimeout> | null = null;
 
   // Restore guard — only restore once from server state
   let restoredFromState = $state(false);
@@ -172,6 +175,38 @@
     if (saveFlashTimer) clearTimeout(saveFlashTimer);
     saveFlashTimer = setTimeout(() => {
       saveFlash = false;
+    }, 1500);
+  }
+
+  // --- Export (per D-01 through D-06 from 09-CONTEXT.md) ---
+
+  function exportSetup() {
+    if (!isValid) return;
+
+    const config = serializeConfig(chapters, powerUpCatalog, startingTokens);
+    const json = JSON.stringify(config, null, 2);
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+
+    if (/iP(hone|ad|od)/i.test(navigator.userAgent)) {
+      // WebKit bug #216918 — <a download> + blob URL silently fails on iOS Safari.
+      // window.open triggers the share sheet; user can save from there.
+      // Do NOT revoke — the open tab holds the reference (per D-06).
+      window.open(url, "_blank");
+    } else {
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "octapp-setup.json";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    exportFlash = true;
+    if (exportFlashTimer) clearTimeout(exportFlashTimer);
+    exportFlashTimer = setTimeout(() => {
+      exportFlash = false;
     }, 1500);
   }
 </script>
