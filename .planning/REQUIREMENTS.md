@@ -16,9 +16,9 @@
 
 ### Export
 
-- [ ] **EXP-01**: Admin can download the current game setup as a JSON file from the /admin/setup page
-- [ ] **EXP-02**: The exported JSON file contains chapters (with trivia questions, scavenger clues, rewards), the power-up catalog, and starting tokens — with all runtime-only Chapter fields stripped
-- [ ] **EXP-03**: Export works on iOS Safari (uses `window.open()` fallback when `<a download>` is unsupported)
+- [x] **EXP-01**: Admin can download the current game setup as a JSON file from the /admin/setup page
+- [x] **EXP-02**: The exported JSON file contains chapters (with trivia questions, scavenger clues, rewards), the power-up catalog, and starting tokens — with all runtime-only Chapter fields stripped
+- [x] **EXP-03**: Export works on iOS Safari (uses `window.open()` fallback when `<a download>` is unsupported)
 
 ### Import
 
