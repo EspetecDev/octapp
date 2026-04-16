@@ -48,7 +48,10 @@ Plans:
   2. The downloaded JSON contains chapters, power-up catalog, and starting tokens — with no runtime-only fields present
   3. On iOS Safari, tapping "Export Config" opens a new tab with the JSON (share sheet save flow) rather than silently failing
   4. `URL.revokeObjectURL` is called after every export to prevent memory leaks
-**Plans**: TBD
+**Plans**: 1 plan
+
+Plans:
+- [ ] 09-01-PLAN.md — exportSetup function + iOS Safari fallback + two-button sticky bar
 **UI hint**: yes
 
 ### Phase 10: Import + E2E Verification
@@ -61,7 +64,10 @@ Plans:
   3. Selecting a valid file shows a confirmation prompt before replacing the current setup
   4. After confirming, the setup form is populated with imported values and `restoredFromState` is set so the next `STATE_SYNC` does not overwrite the imported data
   5. End-to-end test passes: export a live config, reload the page, import the file, verify form values match, click Save, verify server state matches in a second browser tab
-**Plans**: TBD
+**Plans**: 1 plan
+
+Plans:
+- [ ] 09-01-PLAN.md — exportSetup function + iOS Safari fallback + two-button sticky bar
 
 ## Progress
 
