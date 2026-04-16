@@ -489,12 +489,19 @@
 
   </main>
 
-  <!-- Sticky save button -->
-  <div class="fixed bottom-0 left-0 right-0 bg-bg pb-6 px-4 pt-2">
+  <!-- Sticky action bar: Export (left) + Save (right) — per D-01 -->
+  <div class="fixed bottom-0 left-0 right-0 bg-bg pb-6 px-4 pt-2 flex gap-2">
+    <button
+      onclick={exportSetup}
+      disabled={!isValid}
+      class="flex-1 min-h-[48px] border border-accent-admin text-accent-admin font-bold rounded-xl disabled:opacity-50 disabled:pointer-events-none"
+    >
+      {exportFlash ? "Exported!" : "Export Config"}
+    </button>
     <button
       onclick={saveSetup}
       disabled={!isValid}
-      class="w-full min-h-[48px] bg-accent-admin text-text-primary font-bold rounded-xl disabled:opacity-50 disabled:pointer-events-none"
+      class="flex-1 min-h-[48px] bg-accent-admin text-text-primary font-bold rounded-xl disabled:opacity-50 disabled:pointer-events-none"
       style={saveFlash ? "background: #22c55e;" : ""}
     >
       {saveFlash ? "Saved" : "Save Setup"}
