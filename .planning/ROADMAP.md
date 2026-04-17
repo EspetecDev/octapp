@@ -21,7 +21,7 @@ All 7 phases complete. Full phase details, plans, and requirements in the milest
 
 - [x] **Phase 8: Config Serializer** - Pure TypeScript module establishing the GameConfig type and serialization/validation contract (completed 2026-04-14)
 - [x] **Phase 9: Export** - Admin can download current game setup as a JSON file, including iOS Safari fallback (completed 2026-04-16)
-- [ ] **Phase 10: Import + E2E Verification** - Admin can load a config file into the setup form, with validation, confirmation, and end-to-end verification
+- [x] **Phase 10: Import + E2E Verification** - Admin can load a config file into the setup form, with validation, confirmation, and end-to-end verification (completed 2026-04-17)
 
 ## Phase Details
 
@@ -68,7 +68,7 @@ Plans:
 
 Plans:
 - [x] 10-01-PLAN.md — importSetup function + three-button sticky bar + confirm mode + error strip
-- [ ] 10-02-PLAN.md — manual E2E verification roundtrip (human-verify checkpoint)
+- [x] 10-02-PLAN.md — manual E2E verification roundtrip (human-verify checkpoint)
 
 ## Progress
 
@@ -83,4 +83,4 @@ Plans:
 | 7. Mobile Bug Fixes | v1.1 | 4/4 | Complete | 2026-04-13 |
 | 8. Config Serializer | v1.2 | 1/1 | Complete   | 2026-04-14 |
 | 9. Export | v1.2 | 1/1 | Complete   | 2026-04-16 |
-| 10. Import + E2E Verification | v1.2 | 1/2 | In Progress|  |
+| 10. Import + E2E Verification | v1.2 | 2/2 | Complete   | 2026-04-17 |
