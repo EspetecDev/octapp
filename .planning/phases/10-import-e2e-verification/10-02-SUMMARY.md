@@ -37,14 +37,14 @@ completed: 2026-04-17
 
 # Phase 10 Plan 02: E2E Verification — Manual roundtrip verification Summary
 
-**Dev server confirmed running at localhost:5173, build exits 0, invalid test fixture created — awaiting human 7-step E2E verification**
+**All 7 E2E verification steps passed — export → import → save roundtrip confirmed working. Bug found and fixed mid-checkpoint: $state.snapshot() required instead of structuredClone on Svelte 5 reactive proxy.**
 
 ## Performance
 
-- **Duration:** ~2 min
+- **Duration:** ~4 min
 - **Started:** 2026-04-17T08:03:44Z
-- **Completed:** 2026-04-17 (awaiting human-verify checkpoint)
-- **Tasks:** 1/2 complete (Task 2 is human-verify checkpoint)
+- **Completed:** 2026-04-17T11:30:00Z
+- **Tasks:** 2/2 complete
 - **Files modified:** 0
 
 ## Accomplishments
@@ -62,8 +62,9 @@ completed: 2026-04-17
 
 ## Task Commits
 
-1. **Task 1: Verify error strip behavior with a malformed file** — no code changes (dev server + test file only)
-2. **Task 2: E2E verification roundtrip** — PENDING human-verify
+1. **Task 1: Verify error strip behavior with a malformed file** — no code changes (dev server + test file only) — `e3f0deb`
+2. **Task 2: E2E verification roundtrip** — all 7 steps PASSED (user-approved 2026-04-17)
+3. **Bug fix (mid-checkpoint):** `confirmImport()` used `structuredClone` on Svelte 5 reactive proxy — fixed with `$state.snapshot()` — `d259168`
 
 ## Files Created/Modified
 
@@ -90,6 +91,13 @@ None — all import/export logic is fully wired. The roundtrip is ready for huma
 ## Self-Check: PASSED
 
 - `/tmp/octapp-invalid-test.json` exists with correct content
-- Dev server running at http://localhost:5173/
-- `npm run build` exits 0 — build output written to `build/`
+- `npm run build` exits 0 — no compilation errors
 - `src/routes/admin/setup/+page.svelte` contains all required import patterns (confirmed via grep)
+- All 7 E2E steps verified by human:
+  - Step 1: Three-button bar (Import | Export | Save) ✓
+  - Step 2: Invalid file → error strip ✓
+  - Step 3: Fill form + Save + Export → octapp-setup.json downloaded ✓
+  - Step 4: Hard refresh → form repopulates from server ✓
+  - Step 5: Import → confirm mode (Replace setup? / Cancel / Yes, Replace) ✓
+  - Step 6: Cancel → bar restored; re-import → Yes, Replace → form populated + "Imported!" flash ✓
+  - Step 7: Save → second tab → server state matches imported config ✓
