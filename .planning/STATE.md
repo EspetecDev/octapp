@@ -21,7 +21,7 @@ progress:
 See: `.planning/PROJECT.md` (updated 2026-04-13)
 
 **Core value:** The groom has a memorable, personalized gauntlet to run through his own bachelor party — driven by his friends, full of surprises.
-**Current focus:** v1.2 milestone COMPLETE — all 3 phases (8, 9, 10) shipped
+**Current focus:** v1.2 archived — planning next milestone
 
 ## Current Position
 
@@ -71,5 +71,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-04-17
-Stopped at: Resumed session — completing v1.2 milestone archive before starting v1.3.
+Stopped at: v1.2 milestone archived. Tag v1.2 created (push manually if needed). Ready for /gsd:new-milestone.
 Resume file: None
