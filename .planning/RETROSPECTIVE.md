@@ -56,6 +56,51 @@
 
 ---
 
+## Milestone: v1.2 — Load Preconfigured Games
+
+**Shipped:** 2026-04-17
+**Phases:** 3 | **Plans:** 4 | **Timeline:** 4 days (2026-04-14 → 2026-04-17)
+
+### What Was Built
+
+- Pure `GameConfig` TypeScript module — serialization type, `serializeConfig()` stripping runtime fields, `validateConfig()` with field-specific error messages
+- Export Config button on /admin/setup — desktop blob download + iOS Safari `window.open()` fallback for WebKit bug #216918
+- Import Config flow — hidden file input, FileReader validation, confirm-mode sticky bar swap, form population with `$state.snapshot()` + `restoredFromState` guard
+- E2E roundtrip verified manually — export → reload → import → save → confirm server state matches
+
+### What Worked
+
+- **Pure-module approach for GameConfig** was the right call: isolated from UI, easy to test, no runtime deps. The "build the contract first" pattern from v1.1 carried over cleanly.
+- **Research phase for Phase 9** surfaced the iOS WebKit blob URL bug before implementation — prevented a silent failure in the shipped product.
+- **E2E checkpoint as a formal plan (10-02)** caught a real bug (`structuredClone` on Svelte 5 reactive proxy) that code review alone would have missed.
+- **3-phase decomposition** (serializer → export → import + E2E) was the right granularity — each phase had a clear, testable outcome.
+
+### What Was Inefficient
+
+- **`restoredFromState = true` guard** had to be added mid-Phase 10 after the bug surfaced during E2E. This pattern was known from research but wasn't fully wired in the initial plan — should have been a first-class requirement in IMP-04.
+- **`$state.snapshot()` vs `structuredClone`** was caught at E2E time, not at plan time. The research notes mentioned `structuredClone` as the existing pattern but didn't flag the reactive proxy caveat. A note in the plan would have prevented the mid-checkpoint fix.
+- **REQUIREMENTS.md traceability table** still had "TBD" in the Plan column at archive time — the table was seeded correctly but never updated as plans completed.
+
+### Patterns Established
+
+- **`$state.snapshot()`** when reading from Svelte 5 `$state` runes into non-reactive contexts (import, serialization) — `structuredClone` throws on reactive proxies
+- **`restoredFromState = true`** as an idempotency guard: always set it before the next `STATE_SYNC` can arrive after any programmatic form mutation
+- **iOS Safari download detection**: `/iP(hone|ad|od)/i` + `window.open('_blank')` for blob downloads; `URL.revokeObjectURL` on desktop path only
+
+### Key Lessons
+
+1. **Platform quirks from research → plan checklist** — the iOS blob bug was researched but the `restoredFromState` guard wasn't explicitly planned. If research surfaces a "must do X", it should appear as a named task in the plan, not just a research note.
+2. **E2E checkpoints find what unit tests can't** — the reactive proxy bug was invisible until real browser interaction. Manual E2E checkpoints are worth keeping even for "simple" features.
+3. **Svelte 5 rune mutation requires `$state.snapshot()`** — when writing tests or doing any non-reactive read from rune state, always snapshot first. This will recur in future phases.
+
+### Cost Observations
+
+- Model: claude-sonnet-4-6 throughout
+- Sessions: ~4 across 3 phases
+- Notable: Phase 10 took two sessions due to the E2E checkpoint requiring real-browser verification; overall the milestone was lean and fast
+
+---
+
 ## Cross-Milestone Trends
 
 ### Process Evolution
@@ -63,9 +108,12 @@
 | Milestone | Phases | Plans | Key Change |
 |-----------|--------|-------|------------|
 | v1.1 (complete) | 7 | 27 | First project — established all patterns from scratch |
+| v1.2 (complete) | 3 | 4 | Lean feature milestone — pure module + browser file I/O + E2E verification |
 
-### Top Lessons (First Milestone)
+### Top Lessons
 
-1. Type-contract plans first pay dividends for every subsequent UI plan in the phase
-2. Real-device testing is non-negotiable for mobile web — local dev hides platform quirks
-3. Spawn the verifier after every phase, not just when the checklist prompts you
+1. **Type/contract plan first** pays dividends for every subsequent UI plan in the phase
+2. **Real-device testing is non-negotiable** for mobile web — local dev hides platform quirks
+3. **Spawn the verifier after every phase** — don't let evidence live only in SUMMARY files
+4. **Research surfacing a "must do X" → plan task**, not just a note — otherwise it slips to E2E
+5. **`$state.snapshot()`** when reading Svelte 5 rune state outside reactive context — will recur
