@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.2
 milestone_name: Load Preconfigured Games
 status: verifying
-stopped_at: Phase 10 context gathered
-last_updated: "2026-04-17T07:23:08.403Z"
-last_activity: 2026-04-16
+stopped_at: Completed 10-import-e2e-verification 10-01-PLAN.md
+last_updated: "2026-04-17T08:00:47.962Z"
+last_activity: 2026-04-17
 progress:
   total_phases: 3
   completed_phases: 2
-  total_plans: 2
-  completed_plans: 2
+  total_plans: 4
+  completed_plans: 3
   percent: 0
 ---
 
@@ -28,7 +28,7 @@ See: `.planning/PROJECT.md` (updated 2026-04-13)
 Phase: 09 (export) — EXECUTING
 Plan: 1 of 1
 Status: Phase complete — ready for verification
-Last activity: 2026-04-16
+Last activity: 2026-04-17
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -59,6 +59,9 @@ Recent decisions affecting v1.2 work:
 - [Phase 09-export]: exportSetup uses serializeConfig() from configSerializer — no inline field stripping (EXP-02)
 - [Phase 09-export]: iOS blob download fallback: /iP(hone|ad|od)/i detection + window.open() — WebKit bug #216918
 - [Phase 09-export]: URL.revokeObjectURL on desktop path only; iOS window.open tab holds blob reference until closed
+- [Phase 10-import-e2e-verification]: Import button always enabled regardless of isValid — import is how you fix a broken setup (D-02)
+- [Phase 10-import-e2e-verification]: confirmImport sets restoredFromState=true to prevent STATE_SYNC from overwriting imported data (D-07)
+- [Phase 10-import-e2e-verification]: Confirm mode is inline sticky bar swap — no modal or overlay component (D-03)
 
 ### Pending Todos
 
@@ -70,6 +73,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-04-17T07:23:08.401Z
-Stopped at: Phase 10 context gathered
-Resume file: .planning/phases/10-import-e2e-verification/10-CONTEXT.md
+Last session: 2026-04-17T08:00:47.960Z
+Stopped at: Completed 10-import-e2e-verification 10-01-PLAN.md
+Resume file: None

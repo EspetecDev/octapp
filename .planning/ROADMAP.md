@@ -67,7 +67,7 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 10-01-PLAN.md — importSetup function + three-button sticky bar + confirm mode + error strip
+- [x] 10-01-PLAN.md — importSetup function + three-button sticky bar + confirm mode + error strip
 - [ ] 10-02-PLAN.md — manual E2E verification roundtrip (human-verify checkpoint)
 
 ## Progress
@@ -83,4 +83,4 @@ Plans:
 | 7. Mobile Bug Fixes | v1.1 | 4/4 | Complete | 2026-04-13 |
 | 8. Config Serializer | v1.2 | 1/1 | Complete   | 2026-04-14 |
 | 9. Export | v1.2 | 1/1 | Complete   | 2026-04-16 |
-| 10. Import + E2E Verification | v1.2 | 0/2 | Not started | - |
+| 10. Import + E2E Verification | v1.2 | 1/2 | In Progress|  |

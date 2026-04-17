@@ -22,10 +22,10 @@
 
 ### Import
 
-- [ ] **IMP-01**: Admin can select a local JSON file from the /admin/setup page to load a previously exported config
-- [ ] **IMP-02**: System validates the selected file's structure before applying it — invalid files show an inline error message without modifying the current setup
-- [ ] **IMP-03**: Admin is prompted to confirm before the current setup is replaced by the imported config
-- [ ] **IMP-04**: A successfully imported config populates the setup form and requires the admin to review and save before the server state is updated
+- [x] **IMP-01**: Admin can select a local JSON file from the /admin/setup page to load a previously exported config
+- [x] **IMP-02**: System validates the selected file's structure before applying it — invalid files show an inline error message without modifying the current setup
+- [x] **IMP-03**: Admin is prompted to confirm before the current setup is replaced by the imported config
+- [x] **IMP-04**: A successfully imported config populates the setup form and requires the admin to review and save before the server state is updated
 
 ---
 
