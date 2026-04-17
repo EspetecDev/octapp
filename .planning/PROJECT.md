@@ -10,6 +10,16 @@ A smartphone-targeted interactive web game built for a bachelor party. The groom
 
 The groom has a memorable, personalized gauntlet to run through his own bachelor party — driven by his friends, full of surprises.
 
+## Current Milestone: v1.3 Localization
+
+**Goal:** Make all UI strings translatable and let each player pick their preferred language (Catalan, Spanish, or English) on the join screen — with no effect on other devices.
+
+**Target features:**
+- i18n infrastructure: message catalog for en / ca / es, English as base/fallback
+- Language picker on the join screen (persisted per device)
+- All static UI strings extracted and translated across all views (join, groom, party, admin dashboard + setup)
+- Per-player locale — each device renders independently in their chosen locale
+
 ## Current State: v1.2 Shipped (2026-04-17)
 
 - **Live URL:** https://octapp-production.up.railway.app
@@ -46,7 +56,7 @@ The groom has a memorable, personalized gauntlet to run through his own bachelor
 
 ### Active
 
-*(None — v1.2 complete. New requirements defined by next milestone.)*
+*(Defined by v1.3 — see REQUIREMENTS.md)*
 
 ### Out of Scope
 
@@ -111,4 +121,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-17 after v1.2 milestone*
+*Last updated: 2026-04-17 — v1.3 Localization started*
