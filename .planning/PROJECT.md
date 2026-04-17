@@ -10,21 +10,12 @@ A smartphone-targeted interactive web game built for a bachelor party. The groom
 
 The groom has a memorable, personalized gauntlet to run through his own bachelor party — driven by his friends, full of surprises.
 
-## Current Milestone: v1.2 — Load Preconfigured Games
-
-**Goal:** Let admins export and import full game configs as JSON files so a setup can be saved, shared, and reused across events.
-
-**Target features:**
-- Export entire setup (chapters, trivia, scavenger clues, rewards, power-up catalog) as a downloadable JSON file
-- Import a JSON file to replace the current setup entirely
-- Export/Import controls on the existing /admin/setup page
-
-## Current State: v1.1 Shipped (2026-04-13)
+## Current State: v1.2 Shipped (2026-04-17)
 
 - **Live URL:** https://octapp-production.up.railway.app
 - **Tech:** SvelteKit 5 + Bun WebSocket server, Railway (single replica, in-memory state)
-- **LoC:** ~4,340 (3,609 frontend TypeScript/Svelte + 729 server)
-- **Coverage:** 7 phases, 27 plans complete
+- **LoC:** ~3,847 (TypeScript/Svelte)
+- **Coverage:** 10 phases, 31 plans complete
 
 ## Requirements
 
@@ -49,15 +40,13 @@ The groom has a memorable, personalized gauntlet to run through his own bachelor
 - ✓ Multi-device validation — admin + groom + party tested simultaneously on real hardware — v1.1
 - ✓ Android back button guard — beforeNavigate + history.pushState on groom and party pages — v1.1
 - ✓ Server crash protection — uncaughtException + unhandledRejection handlers, no process.exit() — v1.1
+- ✓ `GameConfig` TypeScript type + `serializeConfig` + `validateConfig` as a pure isolated module — v1.2
+- ✓ Admin can export full game setup as a JSON file (with iOS Safari `window.open()` fallback) — v1.2
+- ✓ Admin can import a JSON file to replace current setup — validation, confirm prompt, `restoredFromState` guard — v1.2
 
 ### Active
 
-- Admin can export full game setup as a JSON file — v1.2
-- Admin can import a JSON file to replace current setup entirely — v1.2
-
-### Validated in v1.2 (in progress)
-
-- ✓ `GameConfig` TypeScript type + `serializeConfig` + `validateConfig` as a pure isolated module — Phase 8
+*(None — v1.2 complete. New requirements defined by next milestone.)*
 
 ### Out of Scope
 
@@ -100,6 +89,9 @@ The groom has a memorable, personalized gauntlet to run through his own bachelor
 | No process.exit() in error handlers | Preserves in-memory game state on Railway when errors occur | ✓ Good — server stays up and sessions survive |
 | Delete sensor minigame (v1.1) | Instant-win normalization bug (divisor 9.8 vs 19.6); not worth fixing | ✓ Good — cleaner codebase, trivia + memory sufficient |
 | beforeNavigate + history.pushState for back button | SvelteKit navigation guard blocks hardware Android back | ✓ Good — verified on real Android device |
+| iOS Safari blob download via `window.open()` | WebKit bug #216918 — `<a download>` + blob URL silently fails on iOS | ✓ Good — export works on all devices |
+| `$state.snapshot()` for import form population | `structuredClone` throws on Svelte 5 reactive proxy; `$state.snapshot()` produces a plain object | ✓ Good — fixed mid-E2E; pattern to follow for future rune mutations |
+| `restoredFromState = true` set immediately on import | Prevents the next `STATE_SYNC` broadcast from silently overwriting imported form values | ✓ Good — critical guard for import correctness |
 
 ## Evolution
 
@@ -119,4 +111,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-14 — Phase 8 complete: GameConfig serializer module*
+*Last updated: 2026-04-17 after v1.2 milestone*

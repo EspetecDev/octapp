@@ -1,5 +1,18 @@
 # Milestones
 
+## v1.2 Load Preconfigured Games (Shipped: 2026-04-17)
+
+**Phases completed:** 3 phases, 4 plans, 8 tasks
+
+**Key accomplishments:**
+
+- Pure-function serialization boundary: GameConfig type with literal version, ConfigChapter stripping three runtime fields, and validateConfig returning field-specific error messages.
+- Export Config button on /admin/setup with iOS-aware blob download, flash feedback, and runtime-field stripping via serializeConfig()
+- Full import flow wired on /admin/setup: hidden file input, FileReader validation, confirm-mode sticky bar swap, structuredClone form population with restoredFromState guard
+- All 7 E2E verification steps passed — export → import → save roundtrip confirmed working. Bug found and fixed mid-checkpoint: $state.snapshot() required instead of structuredClone on Svelte 5 reactive proxy.
+
+---
+
 ## v1.1 Deployment & Testing (Shipped: 2026-04-13)
 
 **Phases completed:** 7 phases, 27 plans, 25 tasks
