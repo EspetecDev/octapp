@@ -561,22 +561,65 @@
 
   </main>
 
-  <!-- Sticky action bar: Export (left) + Save (right) — per D-01 -->
+  <!-- Hidden file input for import -->
+  <input
+    type="file"
+    accept=".json"
+    class="hidden"
+    bind:this={importFileInput}
+    onchange={importSetup}
+  />
+
+  <!-- Error strip — fixed above sticky bar, visible only when importError is set (D-05, D-06) -->
+  {#if importError}
+    <div class="fixed bottom-[88px] left-0 right-0 px-4">
+      <div class="bg-bg border border-red-500 rounded-xl px-4 py-3 text-[14px] text-red-400">
+        ⚠ {importError}
+      </div>
+    </div>
+  {/if}
+
+  <!-- Sticky action bar: Import (left) | Export (middle) | Save (right) — per D-01 -->
+  <!-- Confirm mode swaps the three buttons for "Replace setup?" + Cancel + Yes, Replace — per D-03, D-04 -->
   <div class="fixed bottom-0 left-0 right-0 bg-bg pb-6 px-4 pt-2 flex gap-2">
-    <button
-      onclick={exportSetup}
-      disabled={!isValid}
-      class="flex-1 min-h-[48px] border border-accent-admin text-accent-admin font-bold rounded-xl disabled:opacity-50 disabled:pointer-events-none"
-    >
-      {exportFlash ? "Exported!" : "Export Config"}
-    </button>
-    <button
-      onclick={saveSetup}
-      disabled={!isValid}
-      class="flex-1 min-h-[48px] bg-accent-admin text-text-primary font-bold rounded-xl disabled:opacity-50 disabled:pointer-events-none"
-      style={saveFlash ? "background: #22c55e;" : ""}
-    >
-      {saveFlash ? "Saved" : "Save Setup"}
-    </button>
+    {#if importConfirmPending}
+      <!-- Confirm mode -->
+      <p class="flex items-center text-[14px] text-text-secondary mr-2 shrink-0">Replace setup?</p>
+      <button
+        onclick={cancelImport}
+        class="flex-1 min-h-[48px] border border-border text-text-secondary font-bold rounded-xl"
+      >
+        Cancel
+      </button>
+      <button
+        onclick={confirmImport}
+        class="flex-1 min-h-[48px] bg-accent-admin text-text-primary font-bold rounded-xl"
+      >
+        Yes, Replace
+      </button>
+    {:else}
+      <!-- Normal three-button mode -->
+      <button
+        onclick={triggerImport}
+        class="flex-1 min-h-[48px] border border-accent-admin text-accent-admin font-bold rounded-xl {importFlash ? 'opacity-70' : ''}"
+      >
+        {importFlash ? "Imported!" : "Import Config"}
+      </button>
+      <button
+        onclick={exportSetup}
+        disabled={!isValid}
+        class="flex-1 min-h-[48px] border border-accent-admin text-accent-admin font-bold rounded-xl disabled:opacity-50 disabled:pointer-events-none"
+      >
+        {exportFlash ? "Exported!" : "Export Config"}
+      </button>
+      <button
+        onclick={saveSetup}
+        disabled={!isValid}
+        class="flex-1 min-h-[48px] bg-accent-admin text-text-primary font-bold rounded-xl disabled:opacity-50 disabled:pointer-events-none"
+        style={saveFlash ? "background: #22c55e;" : ""}
+      >
+        {saveFlash ? "Saved" : "Save Setup"}
+      </button>
+    {/if}
   </div>
 {/if}
