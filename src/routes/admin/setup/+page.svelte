@@ -258,11 +258,13 @@
 
   function confirmImport() {
     if (!importConfirmPending) return;
-    const { config } = importConfirmPending;
+    // $state.snapshot() returns a plain (non-proxied) deep copy — required because
+    // importConfirmPending is $state, so .config.chapters is a Svelte reactive proxy
+    // and structuredClone on a proxy produces unexpected results.
+    const { config } = $state.snapshot(importConfirmPending);
 
-    // Populate form — use structuredClone (existing pattern, lines 28-29)
-    chapters = structuredClone(config.chapters) as typeof chapters;
-    powerUpCatalog = structuredClone(config.powerUpCatalog);
+    chapters = config.chapters as typeof chapters;
+    powerUpCatalog = config.powerUpCatalog;
     startingTokens = config.startingTokens;
 
     // Set restore guard so next STATE_SYNC does not overwrite (D-07)
