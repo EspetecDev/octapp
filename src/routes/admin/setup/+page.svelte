@@ -3,7 +3,7 @@
   import { page } from "$app/stores";
   import { gameState, sendMessage } from "$lib/socket.ts";
   import type { Chapter, TriviaQuestion, PowerUp } from "$lib/types.ts";
-  import { serializeConfig } from "$lib/configSerializer";
+  import { serializeConfig, validateConfig } from "$lib/configSerializer";
 
   // Auth state (identical pattern to /admin)
   let authorized = $state<boolean | null>(null); // null = loading
@@ -17,6 +17,12 @@
   let saveFlashTimer: ReturnType<typeof setTimeout> | null = null;
   let exportFlash = $state(false);
   let exportFlashTimer: ReturnType<typeof setTimeout> | null = null;
+  let importFlash = $state(false);
+  let importFlashTimer: ReturnType<typeof setTimeout> | null = null;
+  let importConfirmPending = $state<{ config: import('$lib/configSerializer').GameConfig } | null>(null);
+  let importError = $state<string>("");
+
+  let importFileInput = $state<HTMLInputElement | null>(null);
 
   // Restore guard — only restore once from server state
   let restoredFromState = $state(false);
@@ -208,6 +214,72 @@
     exportFlashTimer = setTimeout(() => {
       exportFlash = false;
     }, 1500);
+  }
+
+  // --- Import (per D-01 through D-07 from 10-CONTEXT.md) ---
+
+  function triggerImport() {
+    importError = "";
+    importFileInput?.click();
+  }
+
+  function importSetup(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(e.target?.result as string);
+      } catch {
+        importError = "File is not valid JSON";
+        importConfirmPending = null;
+        return;
+      }
+
+      const result = validateConfig(parsed);
+      if (!result.ok) {
+        importError = result.error;
+        importConfirmPending = null;
+        return;
+      }
+
+      // Valid config — enter confirm mode (D-03)
+      importError = "";
+      importConfirmPending = { config: result.config };
+    };
+    reader.readAsText(file);
+
+    // Reset file input so re-selecting the same file triggers onchange again
+    input.value = "";
+  }
+
+  function confirmImport() {
+    if (!importConfirmPending) return;
+    const { config } = importConfirmPending;
+
+    // Populate form — use structuredClone (existing pattern, lines 28-29)
+    chapters = structuredClone(config.chapters) as typeof chapters;
+    powerUpCatalog = structuredClone(config.powerUpCatalog);
+    startingTokens = config.startingTokens;
+
+    // Set restore guard so next STATE_SYNC does not overwrite (D-07)
+    restoredFromState = true;
+
+    importConfirmPending = null;
+    importError = "";
+
+    // Brief flash feedback (analogous to saveFlash / exportFlash)
+    importFlash = true;
+    if (importFlashTimer) clearTimeout(importFlashTimer);
+    importFlashTimer = setTimeout(() => { importFlash = false; }, 1500);
+  }
+
+  function cancelImport() {
+    importConfirmPending = null;
+    importError = "";
   }
 </script>
 
