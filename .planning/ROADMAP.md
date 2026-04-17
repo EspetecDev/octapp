@@ -64,10 +64,11 @@ Plans:
   3. Selecting a valid file shows a confirmation prompt before replacing the current setup
   4. After confirming, the setup form is populated with imported values and `restoredFromState` is set so the next `STATE_SYNC` does not overwrite the imported data
   5. End-to-end test passes: export a live config, reload the page, import the file, verify form values match, click Save, verify server state matches in a second browser tab
-**Plans**: 1 plan
+**Plans**: 2 plans
 
 Plans:
-- [ ] 09-01-PLAN.md — exportSetup function + iOS Safari fallback + two-button sticky bar
+- [ ] 10-01-PLAN.md — importSetup function + three-button sticky bar + confirm mode + error strip
+- [ ] 10-02-PLAN.md — manual E2E verification roundtrip (human-verify checkpoint)
 
 ## Progress
 
@@ -82,4 +83,4 @@ Plans:
 | 7. Mobile Bug Fixes | v1.1 | 4/4 | Complete | 2026-04-13 |
 | 8. Config Serializer | v1.2 | 1/1 | Complete   | 2026-04-14 |
 | 9. Export | v1.2 | 1/1 | Complete   | 2026-04-16 |
-| 10. Import + E2E Verification | v1.2 | 0/? | Not started | - |
+| 10. Import + E2E Verification | v1.2 | 0/2 | Not started | - |
