@@ -12,6 +12,7 @@ const config = {
       precompress: false,
       strict: false,
     }),
+    paths: { relative: false },   // Required for Paraglide + adapter-static
   },
 };
 

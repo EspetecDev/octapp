@@ -18,5 +18,8 @@
     "tailwindcss": "4.2.2",
     "typescript": "^5.0.0",
     "vite": "^6.0.0"
+  },
+  "dependencies": {
+    "@inlang/paraglide-js": "^2.16.0"
   }
 }
