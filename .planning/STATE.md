@@ -4,7 +4,7 @@ milestone: v1.1
 milestone_name: — Deployment & Testing
 current_plan: 1
 status: Executing Phase 05
-last_updated: "2026-04-10T14:25:54.376Z"
+last_updated: "2026-04-18T14:20:53.709Z"
 progress:
   total_phases: 7
   completed_phases: 4
@@ -105,6 +105,7 @@ See: `.planning/PROJECT.md` (updated 2026-04-07)
 - [Phase 05-01]: uncaughtException handler uses console.error only — no process.exit() — preserves in-memory game state on Railway
 - [Phase 05-01]: healthcheckTimeout set to 30 (not 10) — matches Railway cold start requirement (Pitfall 13)
 - [Phase 05-01]: No drainingSeconds or numReplicas — single replica required for in-memory game state
+- [Phase 11-01]: paraglideVitePlugin imported from @inlang/paraglide-js main export — /vite sub-path missing from exports map in v2.16.0, main index re-exports it correctly
 
 ## Performance Metrics
 
@@ -127,6 +128,7 @@ See: `.planning/PROJECT.md` (updated 2026-04-07)
 | Phase 04-group-economy-multiplayer P03 | 15 | 2 tasks | 6 files |
 | Phase 04-group-economy-multiplayer P04-04 | 2 | 1 tasks | 1 files |
 | Phase 05-railway-deploy-smoke-test P01 | 1 | 2 tasks | 2 files |
+| Phase 11-i18n-infrastructure P11-01 | 2 | 1 tasks | 8 files |
 
 ## Next Step
 
