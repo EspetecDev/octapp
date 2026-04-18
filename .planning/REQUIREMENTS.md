@@ -10,9 +10,9 @@ Requirements for the v1.3 Localization milestone. Each maps to roadmap phases.
 ### i18n Infrastructure
 
 - [ ] **INFRA-01**: App builds and runs with `@inlang/paraglide-js` v2, three locales (en/ca/es) configured in `project.inlang/settings.json`, and English as the compile-time fallback locale
-- [ ] **INFRA-02**: A reactive `src/lib/i18n/locale.svelte.ts` module wraps Paraglide's `setLocale`/`getLocale` so all components source locale state from a single `$state` rune — never importing from Paraglide runtime directly
-- [ ] **INFRA-03**: Active locale is written to `localStorage` on change and read back on mount, persisting the user's choice across page refreshes
-- [ ] **INFRA-04**: On first visit (no stored locale), app auto-detects browser preferred language via `navigator.language` and applies nearest supported locale (ca/es/en)
+- [x] **INFRA-02**: A reactive `src/lib/i18n/locale.svelte.ts` module wraps Paraglide's `setLocale`/`getLocale` so all components source locale state from a single `$state` rune — never importing from Paraglide runtime directly
+- [x] **INFRA-03**: Active locale is written to `localStorage` on change and read back on mount, persisting the user's choice across page refreshes
+- [x] **INFRA-04**: On first visit (no stored locale), app auto-detects browser preferred language via `navigator.language` and applies nearest supported locale (ca/es/en)
 - [ ] **INFRA-05**: App prevents flash of wrong locale (FOUC) via an inline `<script>` in `app.html` that reads `localStorage` synchronously before the SPA boots
 
 ### String Catalog
@@ -66,9 +66,9 @@ Explicitly excluded. Documented to prevent scope creep.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | INFRA-01 | Phase 11 | Pending |
-| INFRA-02 | Phase 11 | Pending |
-| INFRA-03 | Phase 11 | Pending |
-| INFRA-04 | Phase 11 | Pending |
+| INFRA-02 | Phase 11 | Complete |
+| INFRA-03 | Phase 11 | Complete |
+| INFRA-04 | Phase 11 | Complete |
 | INFRA-05 | Phase 11 | Pending |
 | I18N-01 | Phase 12 | Pending |
 | I18N-02 | Phase 12 | Pending |

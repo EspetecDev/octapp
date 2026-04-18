@@ -47,8 +47,8 @@ All 3 phases complete. Full phase details, plans, and requirements in the milest
   5. No flash of wrong locale occurs on load: an inline `<script>` in `app.html` reads `localStorage` synchronously before the SPA boots
 **Plans**: 3 plans
 Plans:
-- [ ] 11-01-PLAN.md — Scaffold Paraglide v2, correct vite.config.ts/svelte.config.js/settings.json, create message stubs, verify build
-- [ ] 11-02-PLAN.md — Create locale.svelte.ts reactive module, wire initLocale() into +layout.svelte onMount
+- [x] 11-01-PLAN.md — Scaffold Paraglide v2, correct vite.config.ts/svelte.config.js/settings.json, create message stubs, verify build
+- [x] 11-02-PLAN.md — Create locale.svelte.ts reactive module, wire initLocale() into +layout.svelte onMount
 - [ ] 11-03-PLAN.md — FOUC inline script in app.html, verification stub on join page, human verify end-to-end
 **UI hint**: yes
 
@@ -99,7 +99,7 @@ Plans:
 | 8. Config Serializer | v1.2 | 1/1 | Complete | 2026-04-14 |
 | 9. Export | v1.2 | 1/1 | Complete | 2026-04-16 |
 | 10. Import + E2E Verification | v1.2 | 2/2 | Complete | 2026-04-17 |
-| 11. i18n Infrastructure | v1.3 | 0/3 | Not started | - |
+| 11. i18n Infrastructure | v1.3 | 2/3 | In Progress|  |
 | 12. String Catalog | v1.3 | 0/? | Not started | - |
 | 13. Language Picker UI | v1.3 | 0/? | Not started | - |
 | 14. Multi-Device Verification | v1.3 | 0/? | Not started | - |
