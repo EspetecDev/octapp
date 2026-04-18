@@ -1,62 +1,94 @@
-# Requirements: v1.2 — Load Preconfigured Games
+# Requirements: Bachelor Party Game — v1.3 Localization
 
-**Milestone goal:** Let admins export and import full game configs as JSON files so a setup can be saved, shared, and reused across events.
+**Defined:** 2026-04-18
+**Core Value:** The groom has a memorable, personalized gauntlet to run through his own bachelor party — driven by his friends, full of surprises.
 
-**Scope:** Admin-only feature on /admin/setup. No server changes. No new WebSocket message types.
+## v1.3 Requirements
 
----
+Requirements for the v1.3 Localization milestone. Each maps to roadmap phases.
 
-## Milestone Requirements
+### i18n Infrastructure
 
-### Config Serializer
+- [ ] **INFRA-01**: App builds and runs with `@inlang/paraglide-js` v2, three locales (en/ca/es) configured in `project.inlang/settings.json`, and English as the compile-time fallback locale
+- [ ] **INFRA-02**: A reactive `src/lib/i18n/locale.svelte.ts` module wraps Paraglide's `setLocale`/`getLocale` so all components source locale state from a single `$state` rune — never importing from Paraglide runtime directly
+- [ ] **INFRA-03**: Active locale is written to `localStorage` on change and read back on mount, persisting the user's choice across page refreshes
+- [ ] **INFRA-04**: On first visit (no stored locale), app auto-detects browser preferred language via `navigator.language` and applies nearest supported locale (ca/es/en)
+- [ ] **INFRA-05**: App prevents flash of wrong locale (FOUC) via an inline `<script>` in `app.html` that reads `localStorage` synchronously before the SPA boots
 
-- [x] **SER-01**: System defines a `GameConfig` TypeScript type representing the exportable subset of game setup (chapters with trivia, scavenger clues, rewards; power-up catalog; starting tokens) — excluding runtime-only Chapter fields (`servedQuestionIndex`, `minigameDone`, `scavengerDone`)
-- [x] **SER-02**: System provides a `serializeConfig(chapters, powerUpCatalog, startingTokens)` function that strips runtime fields and returns a `GameConfig` object
-- [x] **SER-03**: System provides a `validateConfig(data: unknown)` function that checks the parsed JSON conforms to the `GameConfig` shape and returns a typed result or a descriptive error
+### String Catalog
 
-### Export
+- [ ] **I18N-01**: All static UI strings across all views (join wizard, groom view, party/group view, admin dashboard, admin setup, shared components) are extracted to `messages/en.json` — no hardcoded UI strings remain in any Svelte template
+- [ ] **I18N-02**: All extracted strings have Catalan translations in `messages/ca.json`; any missing key falls back to English silently
+- [ ] **I18N-03**: All extracted strings have Spanish translations in `messages/es.json`; any missing key falls back to English silently
+- [ ] **I18N-04**: User-authored content (chapter names, trivia questions, scavenger clues, reward text, player names) is explicitly excluded from the catalog and renders as-is from game state
 
-- [x] **EXP-01**: Admin can download the current game setup as a JSON file from the /admin/setup page
-- [x] **EXP-02**: The exported JSON file contains chapters (with trivia questions, scavenger clues, rewards), the power-up catalog, and starting tokens — with all runtime-only Chapter fields stripped
-- [x] **EXP-03**: Export works on iOS Safari (uses `window.open()` fallback when `<a download>` is unsupported)
+### Language Picker
 
-### Import
+- [ ] **PICKER-01**: Join screen displays a 3-pill language picker showing native language names ("English · Català · Español") with a minimum 44px tap target on each option
+- [ ] **PICKER-02**: Selecting a locale in the picker updates all visible UI strings immediately without a page reload or loss of join form state
+- [ ] **PICKER-03**: Picker visually reflects the currently active locale (filled/highlighted pill on the selected option)
 
-- [x] **IMP-01**: Admin can select a local JSON file from the /admin/setup page to load a previously exported config
-- [x] **IMP-02**: System validates the selected file's structure before applying it — invalid files show an inline error message without modifying the current setup
-- [x] **IMP-03**: Admin is prompted to confirm before the current setup is replaced by the imported config
-- [x] **IMP-04**: A successfully imported config populates the setup form and requires the admin to review and save before the server state is updated
+### Verification
 
----
+- [ ] **VERIFY-01**: A locale change on one device does not affect any other connected device — locale is fully per-device
+- [ ] **VERIFY-02**: Locale is absent from all WebSocket messages and is not part of server-side game state
+- [ ] **VERIFY-03**: The `html[lang]` attribute updates to reflect the active locale on every locale change
+- [ ] **VERIFY-04**: Locale persists through page refresh and WebSocket reconnection on both iOS Safari and Android Chrome
 
-## Future Requirements
+## v2 Requirements
 
-- Filename with timestamp on export (e.g. `octapp-config-2026-04-14.json`) — deferred, not selected for this milestone
-- Block import button during active game — deferred, not selected for this milestone
-- Export sourced from server state (rather than form state) — not needed; form state is the correct source
+Deferred to a future milestone. Tracked but not in current roadmap.
 
----
+### Language Picker
+
+- **PICKER-04**: In-game language switcher accessible from the party/group view header during a live session
+
+### Localization Quality
+
+- **I18N-05**: ICU pluralization for count-bearing strings (token balances, player counts) with correct ca/es plural forms ("1 punt / 2 punts")
+- **I18N-06**: Locale-aware number formatting for scores and token values
 
 ## Out of Scope
 
-- Server-side import endpoint — browser-only; SAVE_SETUP WebSocket message already handles this
-- New WebSocket message type (LOAD_CONFIG) — SAVE_SETUP already does what's needed
-- Merge import (add to existing setup) — replace-entirely is simpler and safer
-- Cloud save / hosted config sharing — one-time event app; local file is sufficient
+Explicitly excluded. Documented to prevent scope creep.
 
----
+| Feature | Reason |
+|---------|--------|
+| URL-based locale routing | Conflicts with join-code WebSocket flow; causes production 404s with adapter-static (Paraglide issue #503) |
+| Translating user-authored content | Chapter names, trivia, clues, rewards come from game state — not static strings |
+| Flag icons as locale identifiers | UX anti-pattern: flags represent countries, not languages |
+| External translation management platform | One-time event app; simple JSON catalogs are sufficient |
+| Server-side locale detection (Accept-Language header) | SSR is disabled on all game routes; locale is client-only |
+| Right-to-left (RTL) language support | Not needed for ca/es/en |
 
 ## Traceability
 
-| REQ-ID | Phase | Plan |
-|--------|-------|------|
-| SER-01 | Phase 8 | TBD |
-| SER-02 | Phase 8 | TBD |
-| SER-03 | Phase 8 | TBD |
-| EXP-01 | Phase 9 | TBD |
-| EXP-02 | Phase 9 | TBD |
-| EXP-03 | Phase 9 | TBD |
-| IMP-01 | Phase 10 | TBD |
-| IMP-02 | Phase 10 | TBD |
-| IMP-03 | Phase 10 | TBD |
-| IMP-04 | Phase 10 | TBD |
+Populated during roadmap creation.
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| INFRA-01 | — | Pending |
+| INFRA-02 | — | Pending |
+| INFRA-03 | — | Pending |
+| INFRA-04 | — | Pending |
+| INFRA-05 | — | Pending |
+| I18N-01 | — | Pending |
+| I18N-02 | — | Pending |
+| I18N-03 | — | Pending |
+| I18N-04 | — | Pending |
+| PICKER-01 | — | Pending |
+| PICKER-02 | — | Pending |
+| PICKER-03 | — | Pending |
+| VERIFY-01 | — | Pending |
+| VERIFY-02 | — | Pending |
+| VERIFY-03 | — | Pending |
+| VERIFY-04 | — | Pending |
+
+**Coverage:**
+- v1.3 requirements: 16 total
+- Mapped to phases: 0
+- Unmapped: 16 ⚠️ (roadmap pending)
+
+---
+*Requirements defined: 2026-04-18*
+*Last updated: 2026-04-18 after initial definition*
