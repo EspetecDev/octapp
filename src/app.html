@@ -6,6 +6,27 @@
     <meta name="theme-color" content="#0f0f0f" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <!-- FOUC prevention: read locale synchronously before SPA boots (D-04, INFRA-05) -->
+    <!-- Must be placed BEFORE %sveltekit.head% so it runs before SvelteKit's JS -->
+    <!-- Uses ES5 syntax (var, indexOf) for maximum browser compatibility incl. old iOS Safari -->
+    <script>
+      (function() {
+        var supported = ['en', 'ca', 'es'];
+        var stored = localStorage.getItem('octapp:locale');
+        var locale;
+        if (stored && supported.indexOf(stored) !== -1) {
+          locale = stored;
+        } else {
+          // First visit: derive nearest supported locale from browser language (D-07, INFRA-04)
+          var lang = (navigator.language || 'en').toLowerCase();
+          if (lang.indexOf('ca') === 0) locale = 'ca';
+          else if (lang.indexOf('es') === 0) locale = 'es';
+          else locale = 'en';
+        }
+        document.documentElement.lang = locale;
+        window.__initialLocale = locale;
+      })();
+    </script>
     %sveltekit.head%
   </head>
   <body data-sveltekit-preload-data="hover" style="background-color: #0f0f0f; margin: 0;">
