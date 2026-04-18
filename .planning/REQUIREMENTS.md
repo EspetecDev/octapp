@@ -63,32 +63,30 @@ Explicitly excluded. Documented to prevent scope creep.
 
 ## Traceability
 
-Populated during roadmap creation.
-
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| INFRA-01 | — | Pending |
-| INFRA-02 | — | Pending |
-| INFRA-03 | — | Pending |
-| INFRA-04 | — | Pending |
-| INFRA-05 | — | Pending |
-| I18N-01 | — | Pending |
-| I18N-02 | — | Pending |
-| I18N-03 | — | Pending |
-| I18N-04 | — | Pending |
-| PICKER-01 | — | Pending |
-| PICKER-02 | — | Pending |
-| PICKER-03 | — | Pending |
-| VERIFY-01 | — | Pending |
-| VERIFY-02 | — | Pending |
-| VERIFY-03 | — | Pending |
-| VERIFY-04 | — | Pending |
+| INFRA-01 | Phase 11 | Pending |
+| INFRA-02 | Phase 11 | Pending |
+| INFRA-03 | Phase 11 | Pending |
+| INFRA-04 | Phase 11 | Pending |
+| INFRA-05 | Phase 11 | Pending |
+| I18N-01 | Phase 12 | Pending |
+| I18N-02 | Phase 12 | Pending |
+| I18N-03 | Phase 12 | Pending |
+| I18N-04 | Phase 12 | Pending |
+| PICKER-01 | Phase 13 | Pending |
+| PICKER-02 | Phase 13 | Pending |
+| PICKER-03 | Phase 13 | Pending |
+| VERIFY-01 | Phase 14 | Pending |
+| VERIFY-02 | Phase 14 | Pending |
+| VERIFY-03 | Phase 14 | Pending |
+| VERIFY-04 | Phase 14 | Pending |
 
 **Coverage:**
 - v1.3 requirements: 16 total
-- Mapped to phases: 0
-- Unmapped: 16 ⚠️ (roadmap pending)
+- Mapped to phases: 16
+- Unmapped: 0 ✓
 
 ---
 *Requirements defined: 2026-04-18*
-*Last updated: 2026-04-18 after initial definition*
+*Last updated: 2026-04-17 — traceability populated after roadmap creation*
