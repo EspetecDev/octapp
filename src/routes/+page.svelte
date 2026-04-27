@@ -102,7 +102,7 @@
         role = "group";
         submitError = err.message;
       } else {
-        submitError = err.message ?? "Something went wrong. Try again.";
+        submitError = err.message ?? m.join_error_generic();
       }
     });
 
@@ -173,7 +173,7 @@
     // 8-second timeout: revert to enabled state (UI-SPEC Interaction Constraints)
     submitTimeout = setTimeout(() => {
       submitting = false;
-      submitError = "Connection timed out. Try again.";
+      submitError = m.join_error_timeout();
     }, 8_000);
   }
 </script>
@@ -183,15 +183,15 @@
     <!-- Reconnecting spinner — shown while we check if stored session is still valid -->
     <div class="flex flex-col items-center gap-4">
       <div class="w-8 h-8 rounded-full border-2 border-text-primary border-t-transparent animate-spin"></div>
-      <p class="text-base text-text-secondary">Reconnecting...</p>
+      <p class="text-base text-text-secondary">{m.join_reconnecting()}</p>
     </div>
   {:else}
   <div class="w-full flex flex-col gap-6">
 
     <!-- App title -->
     <div class="text-center">
-      <h1 class="text-[40px] font-bold text-text-primary leading-tight">Bachelor Party</h1>
-      <p class="text-base text-text-secondary mt-1">Enter your code to join the game.</p>
+      <h1 class="text-[40px] font-bold text-text-primary leading-tight">{m.join_title()}</h1>
+      <p class="text-base text-text-secondary mt-1">{m.join_subtitle()}</p>
     </div>
 
     <form
@@ -200,7 +200,7 @@
     >
       <!-- Code input -->
       <div class="flex flex-col gap-1">
-        <label for="code-input" class="text-[14px] text-text-secondary">Game code</label>
+        <label for="code-input" class="text-[14px] text-text-secondary">{m.join_code_label()}</label>
         <input
           id="code-input"
           type="text"
@@ -226,12 +226,12 @@
 
       <!-- Name input -->
       <div class="flex flex-col gap-1">
-        <label for="name-input" class="text-[14px] text-text-secondary">Your name</label>
+        <label for="name-input" class="text-[14px] text-text-secondary">{m.join_name_label()}</label>
         <input
           id="name-input"
           type="text"
           autocomplete="nickname"
-          placeholder="Your name"
+          placeholder={m.join_name_placeholder()}
           class="
             w-full h-[52px] rounded-lg bg-surface border-2 border-border px-4
             text-base text-text-primary
@@ -246,7 +246,7 @@
 
       <!-- Role selector -->
       <div class="flex flex-col gap-1">
-        <span class="text-[14px] text-text-secondary">Your role</span>
+        <span class="text-[14px] text-text-secondary">{m.join_role_label()}</span>
         <div class="flex gap-2">
           <!-- Groom button: disabled when loading (no STATE_SYNC yet) OR groom already taken -->
           <button
@@ -262,9 +262,9 @@
             onclick={() => selectRole("groom")}
             disabled={groomTaken || gameStateLoading || submitting}
             aria-pressed={role === "groom"}
-            title={gameStateLoading ? "Connecting..." : groomTaken ? "Groom role already taken" : undefined}
+            title={gameStateLoading ? m.join_groom_title_loading() : groomTaken ? m.join_groom_title_taken() : undefined}
           >
-            {gameStateLoading ? "..." : "I'm the Groom"}
+            {gameStateLoading ? m.join_groom_btn_loading() : m.join_groom_btn()}
           </button>
           <!-- Group button -->
           <button
@@ -280,7 +280,7 @@
             disabled={submitting}
             aria-pressed={role === "group"}
           >
-            I'm in the Group
+            {m.join_group_btn()}
           </button>
         </div>
         {#if submitError && submitError.includes("Groom role")}
@@ -303,7 +303,7 @@
         {#if submitting}
           <div class="cta-spinner" aria-hidden="true"></div>
         {:else}
-          Join Game
+          {m.join_cta_btn()}
         {/if}
       </button>
 
