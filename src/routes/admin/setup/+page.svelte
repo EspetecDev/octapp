@@ -359,24 +359,24 @@
         <!-- Trivia pool (only when type is trivia) -->
         {#if chapter.minigameType === "trivia"}
           <div class="mb-4">
-            <p class="text-[14px] text-text-secondary mb-2">Trivia Questions</p>
+            <p class="text-[14px] text-text-secondary mb-2">{m.admin_setup_trivia_section_label()}</p>
 
             {#each chapter.triviaPool as question, qi}
               <div class="bg-bg border border-border rounded-lg p-4 mb-3">
                 <div class="flex items-start justify-between mb-2">
-                  <span class="text-[14px] text-text-secondary">Question {qi + 1}</span>
+                  <span class="text-[14px] text-text-secondary">{m.admin_setup_question_label({ number: qi + 1 })}</span>
                   <button
                     onclick={() => removeQuestion(i, qi)}
                     class="text-[14px] text-destructive min-h-[44px] px-2"
                   >
-                    Remove
+                    {m.admin_setup_remove_question_btn()}
                   </button>
                 </div>
 
                 <!-- Question text -->
                 <textarea
                   rows="1"
-                  placeholder="Question text"
+                  placeholder={m.admin_setup_question_placeholder()}
                   class="w-full bg-surface border border-border rounded-lg px-3 py-2 text-base text-text-primary mb-2 resize-none"
                   value={question.question}
                   oninput={(e) => updateQuestion(i, qi, "question", (e.target as HTMLTextAreaElement).value)}
@@ -385,7 +385,7 @@
                 <!-- Correct answer -->
                 <input
                   type="text"
-                  placeholder="Correct answer"
+                  placeholder={m.admin_setup_correct_answer_placeholder()}
                   class="w-full bg-surface border border-border rounded-lg px-3 py-2 text-base text-text-primary mb-2"
                   value={question.correctAnswer}
                   oninput={(e) => updateQuestion(i, qi, "correctAnswer", (e.target as HTMLInputElement).value)}
@@ -394,21 +394,21 @@
                 <!-- Wrong options -->
                 <input
                   type="text"
-                  placeholder="Wrong option 1"
+                  placeholder={m.admin_setup_wrong_option_1_placeholder()}
                   class="w-full bg-surface border border-border rounded-lg px-3 py-2 text-base text-text-primary mb-2"
                   value={question.wrongOptions[0]}
                   oninput={(e) => updateWrongOption(i, qi, 0, (e.target as HTMLInputElement).value)}
                 />
                 <input
                   type="text"
-                  placeholder="Wrong option 2"
+                  placeholder={m.admin_setup_wrong_option_2_placeholder()}
                   class="w-full bg-surface border border-border rounded-lg px-3 py-2 text-base text-text-primary mb-2"
                   value={question.wrongOptions[1]}
                   oninput={(e) => updateWrongOption(i, qi, 1, (e.target as HTMLInputElement).value)}
                 />
                 <input
                   type="text"
-                  placeholder="Wrong option 3"
+                  placeholder={m.admin_setup_wrong_option_3_placeholder()}
                   class="w-full bg-surface border border-border rounded-lg px-3 py-2 text-base text-text-primary"
                   value={question.wrongOptions[2]}
                   oninput={(e) => updateWrongOption(i, qi, 2, (e.target as HTMLInputElement).value)}
@@ -420,17 +420,17 @@
               onclick={() => addQuestion(i)}
               class="text-[14px] text-text-secondary min-h-[44px] px-2"
             >
-              + Add Question
+              {m.admin_setup_add_question_btn()}
             </button>
           </div>
         {/if}
 
         <!-- Scavenger clue -->
         <div class="mb-4">
-          <label class="block text-[14px] text-text-secondary mb-1">Scavenger Clue</label>
+          <label class="block text-[14px] text-text-secondary mb-1">{m.admin_setup_scavenger_clue_label()}</label>
           <textarea
             rows="3"
-            placeholder="Riddle or clue directing the groom where to go"
+            placeholder={m.admin_setup_scavenger_clue_placeholder()}
             class="w-full bg-bg border border-border rounded-lg px-4 py-2 text-base text-text-primary resize-none"
             value={chapter.scavengerClue}
             oninput={(e) => updateChapterField(i, "scavengerClue", (e.target as HTMLTextAreaElement).value)}
@@ -439,10 +439,10 @@
 
         <!-- Scavenger hint (optional) -->
         <div class="mb-4">
-          <label class="block text-[14px] text-text-secondary mb-1">Hint (optional)</label>
+          <label class="block text-[14px] text-text-secondary mb-1">{m.admin_setup_hint_label()}</label>
           <input
             type="text"
-            placeholder="Optional hint (costs points to reveal)"
+            placeholder={m.admin_setup_hint_placeholder()}
             class="w-full bg-bg border border-border rounded-lg px-4 py-2 text-base text-text-primary"
             value={chapter.scavengerHint ?? ""}
             oninput={(e) => updateChapterField(i, "scavengerHint", (e.target as HTMLInputElement).value)}
@@ -451,10 +451,10 @@
 
         <!-- Reward -->
         <div>
-          <label class="block text-[14px] text-text-secondary mb-1">Reward</label>
+          <label class="block text-[14px] text-text-secondary mb-1">{m.admin_setup_reward_label()}</label>
           <textarea
             rows="2"
-            placeholder="What is unlocked (dare, location, embarrassing content)"
+            placeholder={m.admin_setup_reward_placeholder()}
             class="w-full bg-bg border border-border rounded-lg px-4 py-2 text-base text-text-primary resize-none"
             value={chapter.reward}
             oninput={(e) => updateChapterField(i, "reward", (e.target as HTMLTextAreaElement).value)}
@@ -471,23 +471,23 @@
       class:opacity-40={chapters.length >= 5}
       class="w-full border border-border border-dashed rounded-xl text-[14px] text-text-secondary min-h-[44px] mb-8"
     >
-      + Add Chapter
+      {m.admin_setup_add_chapter_btn()}
     </button>
 
     <!-- Power-ups & Sabotages section -->
     <section class="mb-8">
-      <h2 class="text-[24px] font-bold text-text-primary mb-4">Power-ups & Sabotages</h2>
+      <h2 class="text-[24px] font-bold text-text-primary mb-4">{m.admin_setup_powerups_section_title()}</h2>
 
       <div class="flex items-center gap-3 mb-4">
         <label
           for="starting-tokens"
           class="text-[14px] text-text-secondary"
-        >Starting tokens per chapter</label>
+        >{m.admin_setup_starting_tokens_label()}</label>
         <input
           id="starting-tokens"
           type="number"
           min="0"
-          placeholder="e.g. 10"
+          placeholder={m.admin_setup_starting_tokens_placeholder()}
           class="w-20 bg-bg border border-border rounded-lg px-2 py-2 text-base text-text-primary text-center min-h-[44px]"
           value={startingTokens}
           oninput={(e) => { startingTokens = Number((e.target as HTMLInputElement).value) || 0; }}
@@ -497,19 +497,19 @@
       {#each powerUpCatalog as powerUp, i}
         <div class="bg-surface border border-border rounded-xl p-4 mb-3 flex flex-col gap-2">
           <div class="flex items-center justify-between">
-            <span class="text-[14px] text-text-secondary">Entry {i + 1}</span>
+            <span class="text-[14px] text-text-secondary">{m.admin_setup_entry_label({ number: i + 1 })}</span>
             <button
               onclick={() => removePowerUp(i)}
               class="text-[14px] text-destructive min-h-[44px] px-2"
             >
-              Remove
+              {m.admin_setup_remove_powerup_btn()}
             </button>
           </div>
 
           <!-- Name -->
           <input
             type="text"
-            placeholder="Power-up name"
+            placeholder={m.admin_setup_powerup_name_placeholder()}
             class="w-full bg-bg border border-border rounded-lg px-3 py-2 text-base text-text-primary"
             value={powerUp.name}
             oninput={(e) => updatePowerUp(i, "name", (e.target as HTMLInputElement).value)}
@@ -518,7 +518,7 @@
           <!-- Description -->
           <input
             type="text"
-            placeholder="Description"
+            placeholder={m.admin_setup_powerup_desc_placeholder()}
             class="w-full bg-bg border border-border rounded-lg px-3 py-2 text-base text-text-primary"
             value={powerUp.description}
             oninput={(e) => updatePowerUp(i, "description", (e.target as HTMLInputElement).value)}
@@ -527,7 +527,7 @@
           <div class="flex items-center gap-3">
             <!-- Token cost -->
             <div class="flex items-center gap-2">
-              <label class="text-[14px] text-text-secondary">Cost</label>
+              <label class="text-[14px] text-text-secondary">{m.admin_setup_cost_label()}</label>
               <input
                 type="number"
                 min="1"
@@ -539,15 +539,15 @@
 
             <!-- Effect type -->
             <div class="flex items-center gap-2 flex-1">
-              <label class="text-[14px] text-text-secondary">Effect</label>
+              <label class="text-[14px] text-text-secondary">{m.admin_setup_effect_label()}</label>
               <select
                 class="flex-1 bg-bg border border-border rounded-lg px-3 py-2 text-base text-text-primary min-h-[44px]"
                 value={powerUp.effectType}
                 onchange={(e) => updatePowerUp(i, "effectType", (e.target as HTMLSelectElement).value)}
               >
-                <option value="timer_add">Timer Add</option>
-                <option value="scramble_options">Scramble Options</option>
-                <option value="distraction">Distraction</option>
+                <option value="timer_add">{m.admin_setup_effect_timer_add()}</option>
+                <option value="scramble_options">{m.admin_setup_effect_scramble()}</option>
+                <option value="distraction">{m.admin_setup_effect_distraction()}</option>
               </select>
             </div>
           </div>
@@ -558,7 +558,7 @@
         onclick={addPowerUp}
         class="w-full border border-accent-admin text-accent-admin min-h-[44px] rounded-xl text-[14px]"
       >
-        + Add Power-up
+        {m.admin_setup_add_powerup_btn()}
       </button>
     </section>
 
@@ -587,18 +587,18 @@
   <div class="fixed bottom-0 left-0 right-0 bg-bg pb-6 px-4 pt-2 flex gap-2">
     {#if importConfirmPending}
       <!-- Confirm mode -->
-      <p class="flex items-center text-[14px] text-text-secondary mr-2 shrink-0">Replace setup?</p>
+      <p class="flex items-center text-[14px] text-text-secondary mr-2 shrink-0">{m.admin_setup_replace_confirm()}</p>
       <button
         onclick={cancelImport}
         class="flex-1 min-h-[48px] border border-border text-text-secondary font-bold rounded-xl"
       >
-        Cancel
+        {m.admin_setup_cancel_btn()}
       </button>
       <button
         onclick={confirmImport}
         class="flex-1 min-h-[48px] bg-accent-admin text-text-primary font-bold rounded-xl"
       >
-        Yes, Replace
+        {m.admin_setup_yes_replace_btn()}
       </button>
     {:else}
       <!-- Normal three-button mode -->
@@ -606,7 +606,7 @@
         onclick={triggerImport}
         class="flex-1 min-h-[48px] border border-accent-admin text-accent-admin font-bold rounded-xl {importFlash ? 'opacity-70' : ''}"
       >
-        {importFlash ? "Imported!" : "Import Config"}
+        {importFlash ? m.admin_setup_imported_btn() : m.admin_setup_import_btn()}
       </button>
       <button
         onclick={exportSetup}
