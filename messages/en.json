@@ -1,5 +1,56 @@
 {
   "test_locale_active": "Active locale: English",
+
+  "join_reconnecting": "Reconnecting...",
+  "join_title": "Bachelor Party",
+  "join_subtitle": "Enter your code to join the game.",
+  "join_code_label": "Game code",
+  "join_name_label": "Your name",
+  "join_name_placeholder": "Your name",
+  "join_role_label": "Your role",
+  "join_groom_btn_loading": "...",
+  "join_groom_btn": "I'm the Groom",
+  "join_groom_title_loading": "Connecting...",
+  "join_groom_title_taken": "Groom role already taken",
+  "join_group_btn": "I'm in the Group",
+  "join_cta_btn": "Join Game",
+  "join_error_generic": "Something went wrong. Try again.",
+  "join_error_timeout": "Connection timed out. Try again.",
+
+  "landscape_heading": "Rotate your phone",
+  "landscape_body": "This game is portrait only.",
+
+  "reconnect_aria_label": "Reconnecting to game",
+  "reconnect_heading": "Reconnecting...",
+  "reconnect_body": "Hold tight — we'll get you back in the game.",
+
+  "memory_grid_aria_label": "Memory card grid",
+  "memory_card_aria_label": "Card {index}",
+  "memory_card_matched_suffix": ", matched",
+  "memory_result_win": "NAILED IT!",
+  "memory_result_loss": "TIME'S UP!",
+  "memory_points_win": "+50 pts",
+  "memory_points_loss": "−20 pts",
+
+  "trivia_options_aria_label": "Answer options",
+  "trivia_loading": "Loading question...",
+  "trivia_result_win": "CORRECT!",
+  "trivia_result_loss": "WRONG!",
+  "trivia_points_win": "+50 pts",
+  "trivia_points_loss": "−20 pts",
+
+  "scavenger_clue_label": "SCAVENGER CLUE",
+  "scavenger_hint_btn": "Request Hint (−10 pts)",
+  "scavenger_hint_label": "HINT",
+  "scavenger_found_btn": "I Found It!",
+
+  "radial_aria_label": "{remaining} seconds remaining",
+
+  "reward_unlocked_label": "REWARD UNLOCKED",
+  "reward_chapter_label": "Chapter {number}",
+  "reward_past_label": "Past Rewards",
+  "reward_past_chapter_btn": "Chapter {number}: {name}",
+
   "groom_role_badge": "You are the Groom",
   "groom_role_aria_label": "Role: Groom",
   "groom_loading": "Loading...",
