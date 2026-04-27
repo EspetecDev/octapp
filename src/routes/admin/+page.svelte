@@ -3,6 +3,7 @@
   import { page } from "$app/stores";
   import { gameState, sendMessage } from "$lib/socket.ts";
   import type { Player } from "$lib/types.ts";
+  import * as m from '$lib/paraglide/messages.js';
 
   let authorized = $state<boolean | null>(null); // null = checking
   let sessionCode = $state<string | null>(null);
@@ -32,7 +33,7 @@
   }
 
   function resetGame() {
-    if (!confirm("Reset the game? All players will be disconnected and scores cleared. Chapter setup is kept.")) return;
+    if (!confirm(m.admin_dash_reset_confirm())) return;
     sendMessage({ type: "RESET_GAME" });
   }
 
@@ -45,14 +46,14 @@
     token = adminToken;
     if (!adminToken) {
       authorized = false;
-      errorMsg = "Access denied.";
+      errorMsg = m.admin_dash_access_denied();
       return;
     }
     try {
       const res = await fetch(`/api/admin/session?token=${encodeURIComponent(adminToken)}`);
       if (!res.ok) {
         authorized = false;
-        errorMsg = "Access denied.";
+        errorMsg = m.admin_dash_access_denied();
         return;
       }
       const data = await res.json() as { sessionCode: string };
@@ -60,7 +61,7 @@
       authorized = true;
     } catch {
       authorized = false;
-      errorMsg = "Access denied.";
+      errorMsg = m.admin_dash_access_denied();
     }
   });
 </script>
@@ -74,7 +75,7 @@
 {:else if authorized === false}
   <!-- Unauthorized -->
   <main class="flex min-h-[100dvh] items-center justify-center bg-bg">
-    <p class="text-[24px] font-bold text-text-primary">Access denied.</p>
+    <p class="text-[24px] font-bold text-text-primary">{m.admin_dash_access_denied()}</p>
   </main>
 
 {:else}
@@ -87,17 +88,17 @@
       style="height: 40dvh;"
     >
       <div class="rounded-xl border-2 border-accent-admin px-8 py-5 text-center">
-        <p class="text-[14px] text-text-secondary mb-1">Share this code</p>
+        <p class="text-[14px] text-text-secondary mb-1">{m.admin_dash_share_code_label()}</p>
         <p
           class="text-[40px] font-bold text-text-primary tracking-[0.1em]"
-          aria-label="Session code: {sessionCode}"
+          aria-label={m.admin_dash_session_aria_label({ code: sessionCode ?? '' })}
         >
           {sessionCode}
         </p>
-        <p class="text-base text-text-secondary mt-1">Players join at this URL</p>
+        <p class="text-base text-text-secondary mt-1">{m.admin_dash_players_join_url()}</p>
       </div>
       {#if groomPlayer}
-        <p class="text-[14px] text-text-secondary">Groom role claimed</p>
+        <p class="text-[14px] text-text-secondary">{m.admin_dash_groom_role_claimed()}</p>
       {/if}
     </section>
 
@@ -108,25 +109,25 @@
           href="/admin/setup?token={token}"
           class="block text-[14px] text-accent-admin"
         >
-          Configure Game
+          {m.admin_dash_configure_link()}
         </a>
       </section>
     {/if}
 
     <!-- Zone 3: Chapter Control -->
     <section class="px-6 pb-6">
-      <p class="text-[14px] text-text-secondary mb-3">Game Progress</p>
+      <p class="text-[14px] text-text-secondary mb-3">{m.admin_dash_game_progress_header()}</p>
 
       {#if isLobby && chapterCount === 0}
         <!-- No chapters configured yet -->
-        <p class="text-base text-text-secondary">No chapters configured. Tap Configure Game to set up before the event.</p>
+        <p class="text-base text-text-secondary">{m.admin_dash_no_chapters()}</p>
       {:else if activeChapterIndex === null}
         <!-- Lobby with chapters ready -->
-        <p class="text-base text-text-primary mb-3">Chapters ready: {chapterCount}</p>
+        <p class="text-base text-text-primary mb-3">{m.admin_dash_chapters_ready({ count: chapterCount })}</p>
       {:else}
         <!-- Active game -->
         <p class="text-base text-text-primary mb-3">
-          Chapter {activeChapterIndex + 1} of {chapterCount} — active
+          {m.admin_dash_chapter_active({ current: (activeChapterIndex ?? 0) + 1, total: chapterCount })}
         </p>
       {/if}
 
@@ -136,10 +137,10 @@
           onclick={unlockNextChapter}
           class="w-full min-h-[48px] bg-accent-admin text-text-primary font-bold rounded-xl"
         >
-          {activeChapterIndex === null ? "Unlock Chapter 1" : `Unlock Chapter ${(activeChapterIndex ?? -1) + 2}`}
+          {activeChapterIndex === null ? m.admin_dash_unlock_first() : m.admin_dash_unlock_next({ number: (activeChapterIndex ?? -1) + 2 })}
         </button>
       {:else if chapterCount > 0 && activeChapterIndex !== null && activeChapterIndex >= chapterCount - 1}
-        <p class="text-[14px] text-text-secondary">All chapters complete.</p>
+        <p class="text-[14px] text-text-secondary">{m.admin_dash_all_complete()}</p>
       {/if}
 
       <!-- Admin override: Confirm Found — visible when minigame done but scavenger not yet confirmed -->
@@ -149,7 +150,7 @@
           class="w-full min-h-[48px] bg-surface border border-border text-text-primary font-bold rounded-xl mt-3"
           style="min-height: 48px;"
         >
-          Confirm Found (admin override)
+          {m.admin_dash_confirm_found_btn()}
         </button>
       {/if}
 
@@ -159,7 +160,7 @@
           onclick={repeatChapter}
           class="w-full min-h-[48px] bg-surface border border-border text-text-primary font-bold rounded-xl mt-3"
         >
-          Repeat Chapter {activeChapterIndex + 1}
+          {m.admin_dash_repeat_chapter_btn({ number: (activeChapterIndex ?? 0) + 1 })}
         </button>
       {/if}
 
@@ -169,7 +170,7 @@
         class="w-full min-h-[48px] rounded-xl mt-3 font-bold"
         style="background: #ef4444; color: #f9fafb;"
       >
-        Reset Game
+        {m.admin_dash_reset_btn()}
       </button>
     </section>
 
@@ -178,13 +179,13 @@
       class="flex-1 overflow-y-auto px-6 pb-8"
       style="-webkit-overflow-scrolling: touch; overscroll-behavior: contain;"
     >
-      <p class="text-[14px] text-text-secondary mb-4">Players in lobby</p>
+      <p class="text-[14px] text-text-secondary mb-4">{m.admin_dash_players_header()}</p>
 
       {#if players.length === 0}
         <!-- Empty state (UI-SPEC) -->
         <div class="text-center py-12">
-          <p class="text-[24px] font-bold text-text-primary mb-2">Waiting for players</p>
-          <p class="text-base text-text-secondary">Share the code above. Players join at this URL.</p>
+          <p class="text-[24px] font-bold text-text-primary mb-2">{m.admin_dash_waiting_heading()}</p>
+          <p class="text-base text-text-secondary">{m.admin_dash_waiting_body()}</p>
         </div>
       {:else}
         <ul class="flex flex-col gap-2">
@@ -213,7 +214,7 @@
                   background: {player.role === 'groom' ? '#f59e0b' : '#ef4444'};
                 "
               >
-                {player.role === "groom" ? "Groom" : "Group"}
+                {player.role === "groom" ? m.admin_dash_role_groom() : m.admin_dash_role_group()}
               </span>
             </li>
           {/each}
@@ -223,10 +224,10 @@
 
     <!-- Zone 5: Scores -->
     <section class="px-6 pb-8">
-      <p class="text-[14px] text-text-secondary mb-3">Scores</p>
+      <p class="text-[14px] text-text-secondary mb-3">{m.admin_dash_scores_header()}</p>
 
       {#if players.length === 0}
-        <p class="text-base text-text-secondary">No players connected yet.</p>
+        <p class="text-base text-text-secondary">{m.admin_dash_no_players()}</p>
       {:else}
         <ul class="flex flex-col gap-2">
           {#each players as player (player.id)}
