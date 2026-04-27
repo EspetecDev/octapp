@@ -4,6 +4,7 @@
   import { gameState, lastEffect, getStoredPlayerId, sendMessage } from "$lib/socket.ts";
   import type { Player } from "$lib/types.ts";
   import type { EffectActivatedPayload } from "$lib/socket.ts";
+  import * as m from '$lib/paraglide/messages.js';
 
   // FIX-01: Block all navigation away from the game during an active session (D-01, D-02, D-03)
   // beforeNavigate cancels SvelteKit client-side navigation
@@ -215,7 +216,7 @@
     <div class="groom-progress-bar">
       <span class="text-[14px] text-text-secondary uppercase tracking-widest truncate">{chapterLabel}</span>
       <span class="text-[24px] font-bold text-text-primary">
-        {activeChapter?.servedQuestionIndex != null ? "⏱" : "Waiting for groom..."}
+        {activeChapter?.servedQuestionIndex != null ? "⏱" : m.party_waiting_for_groom()}
       </span>
     </div>
 
@@ -223,12 +224,12 @@
     <div class="earn-zone">
       <!-- Token balance display (display size, 40px bold) -->
       <p class="text-[40px] font-bold text-text-primary text-center">
-        💰 {myBalance} {myBalance === 1 ? "token" : "tokens"}
+        {myBalance === 1 ? m.party_token_balance_single({ count: myBalance }) : m.party_token_balance_plural({ count: myBalance })}
       </p>
 
       <!-- Earned counter -->
       <p class="text-[14px] text-text-secondary text-center">
-        {earnedThisChallenge} / 5 earned this challenge
+        {m.party_earned_counter({ earned: earnedThisChallenge })}
       </p>
 
       <!-- Chapter label above earn button -->
@@ -240,23 +241,23 @@
         class:earn-capped={earnedThisChallenge >= EARN_CAP}
         class:earn-flash={earnFlash}
         disabled={earnedThisChallenge >= EARN_CAP}
-        aria-label="Tap to earn a token"
+        aria-label={m.party_earn_aria_label()}
         aria-disabled={earnedThisChallenge >= EARN_CAP}
         ontouchend={handleEarnTap}
         onclick={handleEarnTap}
       >
-        {earnedThisChallenge >= EARN_CAP ? "MAX EARNED" : "TAP TO EARN"}
+        {earnedThisChallenge >= EARN_CAP ? m.party_earn_btn_capped() : m.party_earn_btn_active()}
       </button>
     </div>
 
     <!-- Zone 3: Shop (fixed max-height 40vh, overflow scroll) -->
     <div class="shop-zone">
-      <p class="text-[14px] text-text-secondary uppercase tracking-[0.15em] mb-3">GROUP SHOP</p>
+      <p class="text-[14px] text-text-secondary uppercase tracking-[0.15em] mb-3">{m.party_shop_header()}</p>
 
       {#if filteredShop.length === 0}
-        <p class="text-[14px] text-text-secondary text-center py-4">No power-ups available.</p>
+        <p class="text-[14px] text-text-secondary text-center py-4">{m.party_shop_empty()}</p>
       {:else}
-        <ul class="shop-list" aria-label="Group shop">
+        <ul class="shop-list" aria-label={m.party_shop_aria_label()}>
           {#each filteredShop as powerUp, i}
             {@const canAfford = myBalance >= powerUp.tokenCost}
             {@const isPending = spendingIndex === i}
@@ -269,15 +270,15 @@
                 <p class="text-[14px] text-text-secondary" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">{powerUp.description}</p>
               </div>
               <div class="shop-item-actions">
-                <span class="cost-badge">{powerUp.tokenCost} tokens</span>
+                <span class="cost-badge">{m.party_shop_cost_badge({ cost: powerUp.tokenCost })}</span>
                 <button
                   class="spend-btn"
                   disabled={!canAfford || isPending}
                   style={isPending ? "opacity: 0.5;" : ""}
-                  aria-label="Spend {powerUp.tokenCost} tokens on {powerUp.name}"
+                  aria-label={m.party_shop_spend_aria_label({ cost: powerUp.tokenCost, name: powerUp.name })}
                   onclick={() => handleSpend(i)}
                 >
-                  Spend
+                  {m.party_shop_spend_btn()}
                 </button>
               </div>
             </li>
@@ -291,8 +292,8 @@
     <div class="social-screen">
 
       <!-- Token Balances section -->
-      <p class="section-header">TOKEN BALANCES</p>
-      <ul class="balances-list" aria-label="Player token balances">
+      <p class="section-header">{m.party_balances_header()}</p>
+      <ul class="balances-list" aria-label={m.party_balances_aria_label()}>
         {#each groupPlayers as player (player.id)}
           <li class="balance-row">
             <span class="text-[16px] font-bold text-text-primary">{player.name}</span>
@@ -300,19 +301,19 @@
           </li>
         {/each}
         {#if groupPlayers.length === 0}
-          <li class="px-4 py-3 text-[14px] text-text-secondary">No group members yet.</li>
+          <li class="px-4 py-3 text-[14px] text-text-secondary">{m.party_balances_empty()}</li>
         {/if}
       </ul>
 
       <!-- Recent Actions feed -->
-      <p class="section-header">RECENT ACTIONS</p>
+      <p class="section-header">{m.party_actions_header()}</p>
       {#if recentActions.length === 0}
         <div class="empty-feed">
-          <p class="text-[14px] font-bold text-text-primary">No actions yet</p>
-          <p class="text-[14px] text-text-secondary">Be the first to use a power-up!</p>
+          <p class="text-[14px] font-bold text-text-primary">{m.party_actions_empty_heading()}</p>
+          <p class="text-[14px] text-text-secondary">{m.party_actions_empty_body()}</p>
         </div>
       {:else}
-        <ul class="actions-list" aria-label="Recent actions">
+        <ul class="actions-list" aria-label={m.party_actions_aria_label()}>
           {#each recentActions as action (action.timestamp)}
             <li class="action-row">
               <p class="text-[16px] text-text-primary">{action.playerName} used {action.powerUpName}</p>
@@ -324,7 +325,7 @@
 
       <!-- Waiting status (shown in lobby) -->
       {#if $gameState?.phase === "lobby"}
-        <p class="text-base text-text-secondary text-center mt-4">The game starts when your host is ready.</p>
+        <p class="text-base text-text-secondary text-center mt-4">{m.party_lobby_waiting()}</p>
       {/if}
     </div>
   {/if}
@@ -338,12 +339,12 @@
       role="status"
     >
       <div class="recap-content">
-        <p class="recap-label">CHAPTER</p>
+        <p class="recap-label">{m.party_recap_label()}</p>
         <p class="recap-number">{recapChapterIndex + 1}</p>
         <p class="recap-chapter-name">
           {$gameState.chapters[recapChapterIndex]?.name ?? ""}
         </p>
-        <p class="recap-progress">{recapChapterIndex + 1} of {$gameState.chapters.length}</p>
+        <p class="recap-progress">{m.party_recap_progress({ current: recapChapterIndex + 1, total: $gameState.chapters.length })}</p>
       </div>
     </div>
   {/if}
@@ -358,7 +359,7 @@
       aria-live="polite"
     >
       <div class="reward-content">
-        <p class="reward-label">REWARD UNLOCKED</p>
+        <p class="reward-label">{m.party_reward_unlocked_label()}</p>
         <p class="reward-chapter">{revealChapter?.name ?? ""}</p>
         <div class="reward-text-container">
           <p class="reward-text">{revealChapter?.reward ?? ""}</p>
@@ -382,7 +383,7 @@
   <!-- Spend reject toast -->
   {#if spendRejectToast}
     <div class="spend-toast" role="alert" aria-live="assertive">
-      Not enough tokens or spend rejected.
+      {m.party_spend_reject_toast()}
     </div>
   {/if}
 </main>
