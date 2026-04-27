@@ -5,6 +5,7 @@
   import type { EffectActivatedPayload } from "$lib/socket.ts";
   import { acquireWakeLock, releaseWakeLock } from "$lib/wakeLock.ts";
   import type { Player, Chapter } from "$lib/types.ts";
+  import * as m from '$lib/paraglide/messages.js';
   // Component imports — implemented in Plans 03, 04, 05, 06
   // These files will be created by downstream plans; import them now for the router to work
   import TriviaMinigame from "$lib/components/TriviaMinigame.svelte";
@@ -126,20 +127,20 @@
       <div
         class="px-6 py-2 rounded-full"
         style="background: #f59e0b;"
-        aria-label="Role: Groom"
+        aria-label={m.groom_role_aria_label()}
       >
-        <span class="text-[24px] font-bold" style="color: #0f0f0f;">You are the Groom</span>
+        <span class="text-[24px] font-bold" style="color: #0f0f0f;">{m.groom_role_badge()}</span>
       </div>
 
       <!-- Player display name -->
       {#if myPlayer}
         <p class="text-[40px] font-bold text-text-primary">{myPlayer.name}</p>
       {:else}
-        <p class="text-[40px] font-bold text-text-primary">Loading...</p>
+        <p class="text-[40px] font-bold text-text-primary">{m.groom_loading()}</p>
       {/if}
 
       <!-- Waiting status -->
-      <p class="text-base text-text-secondary text-center">Waiting for the game to start...</p>
+      <p class="text-base text-text-secondary text-center">{m.groom_waiting()}</p>
 
       <!-- Three-dot pulse (UI-SPEC Animation Contract: 1200ms, staggered 400ms) -->
       <div class="flex gap-2" aria-hidden="true">
@@ -170,12 +171,12 @@
       role="status"
     >
       <div class="recap-content">
-        <p class="recap-label">CHAPTER</p>
+        <p class="recap-label">{m.groom_recap_label()}</p>
         <p class="recap-number">{recapChapterIndex + 1}</p>
         <p class="recap-chapter-name">
           {$gameState.chapters[recapChapterIndex]?.name ?? ""}
         </p>
-        <p class="recap-progress">{recapChapterIndex + 1} of {$gameState.chapters.length}</p>
+        <p class="recap-progress">{m.groom_recap_progress({ current: recapChapterIndex + 1, total: $gameState.chapters.length })}</p>
       </div>
     </div>
   {/if}
