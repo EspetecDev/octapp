@@ -63,7 +63,7 @@ Plans:
   4. User-authored content (chapter names, trivia questions, scavenger clues, reward text, player names) is not present in any catalog file and renders directly from game state
 **Plans**: 5 plans
 Plans:
-- [ ] 12-01-PLAN.md — Extract join page + shared components (LandscapeOverlay, ReconnectingOverlay, MemoryMinigame, TriviaMinigame, ScavengerScreen, RadialCountdown, RewardScreen) into en.json
+- [x] 12-01-PLAN.md — Extract join page + shared components (LandscapeOverlay, ReconnectingOverlay, MemoryMinigame, TriviaMinigame, ScavengerScreen, RadialCountdown, RewardScreen) into en.json
 - [ ] 12-02-PLAN.md — Extract groom view + party/group view into en.json
 - [ ] 12-03-PLAN.md — Extract admin dashboard + admin setup into en.json
 - [ ] 12-04-PLAN.md — Audit complete en.json, present to user, collect ca/es translations (human checkpoint)
@@ -106,6 +106,6 @@ Plans:
 | 9. Export | v1.2 | 1/1 | Complete | 2026-04-16 |
 | 10. Import + E2E Verification | v1.2 | 2/2 | Complete | 2026-04-17 |
 | 11. i18n Infrastructure | v1.3 | 2/3 | In Progress|  |
-| 12. String Catalog | v1.3 | 0/5 | Not started | - |
+| 12. String Catalog | v1.3 | 1/5 | In Progress | - |
 | 13. Language Picker UI | v1.3 | 0/? | Not started | - |
 | 14. Multi-Device Verification | v1.3 | 0/? | Not started | - |
