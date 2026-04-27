@@ -4,6 +4,7 @@
   import { gameState, sendMessage } from "$lib/socket.ts";
   import type { Chapter, TriviaQuestion, PowerUp } from "$lib/types.ts";
   import { serializeConfig, validateConfig } from "$lib/configSerializer";
+  import * as m from '$lib/paraglide/messages.js';
 
   // Auth state (identical pattern to /admin)
   let authorized = $state<boolean | null>(null); // null = loading
@@ -234,7 +235,7 @@
       try {
         parsed = JSON.parse(e.target?.result as string);
       } catch {
-        importError = "File is not valid JSON";
+        importError = m.admin_setup_import_error_invalid_json();
         importConfirmPending = null;
         return;
       }
@@ -294,7 +295,7 @@
 {:else if authorized === false}
   <!-- Unauthorized -->
   <main class="flex min-h-[100dvh] items-center justify-center bg-bg">
-    <p class="text-[24px] font-bold text-text-primary">Access denied.</p>
+    <p class="text-[24px] font-bold text-text-primary">{m.admin_setup_access_denied()}</p>
   </main>
 
 {:else}
@@ -303,15 +304,15 @@
 
     <!-- Page header -->
     <header class="pt-6 pb-4 flex items-center justify-between">
-      <h1 class="text-[24px] font-bold text-text-primary">Configure Game</h1>
-      <a href="/admin?token={token}" class="text-[14px] text-text-secondary">Back to Dashboard</a>
+      <h1 class="text-[24px] font-bold text-text-primary">{m.admin_setup_page_title()}</h1>
+      <a href="/admin?token={token}" class="text-[14px] text-text-secondary">{m.admin_setup_back_link()}</a>
     </header>
 
     <!-- Chapters empty state -->
     {#if chapters.length === 0}
       <div class="flex flex-col items-center justify-center py-16 text-center">
-        <p class="text-[24px] font-bold text-text-primary mb-2">No chapters yet</p>
-        <p class="text-base text-text-secondary">Add your first chapter to get started.</p>
+        <p class="text-[24px] font-bold text-text-primary mb-2">{m.admin_setup_no_chapters_heading()}</p>
+        <p class="text-base text-text-secondary">{m.admin_setup_no_chapters_body()}</p>
       </div>
     {/if}
 
@@ -321,12 +322,12 @@
 
         <!-- Chapter header -->
         <div class="flex items-center mb-4">
-          <span class="text-[14px] text-text-secondary">Chapter {i + 1}</span>
+          <span class="text-[14px] text-text-secondary">{m.admin_setup_chapter_label({ number: i + 1 })}</span>
           <button
             onclick={() => removeChapter(i)}
             class="ml-auto text-[14px] text-destructive min-h-[44px] px-2"
           >
-            Remove Chapter
+            {m.admin_setup_remove_chapter_btn()}
           </button>
         </div>
 
@@ -334,7 +335,7 @@
         <div class="mb-4">
           <input
             type="text"
-            placeholder="Chapter name (e.g. The Bar)"
+            placeholder={m.admin_setup_chapter_name_placeholder()}
             class="w-full bg-bg border border-border rounded-lg px-4 py-2 text-[24px] font-bold text-text-primary"
             value={chapter.name}
             oninput={(e) => updateChapterField(i, "name", (e.target as HTMLInputElement).value)}
@@ -350,7 +351,7 @@
                 ? 'border-2 border-accent-admin text-text-primary bg-surface'
                 : 'border border-border text-text-secondary'}"
             >
-              {type === "trivia" ? "Trivia" : "Memory"}
+              {type === "trivia" ? m.admin_setup_minigame_trivia() : m.admin_setup_minigame_memory()}
             </button>
           {/each}
         </div>
@@ -612,7 +613,7 @@
         disabled={!isValid}
         class="flex-1 min-h-[48px] border border-accent-admin text-accent-admin font-bold rounded-xl disabled:opacity-50 disabled:pointer-events-none"
       >
-        {exportFlash ? "Exported!" : "Export Config"}
+        {exportFlash ? m.admin_setup_exported_btn() : m.admin_setup_export_btn()}
       </button>
       <button
         onclick={saveSetup}
@@ -620,7 +621,7 @@
         class="flex-1 min-h-[48px] bg-accent-admin text-text-primary font-bold rounded-xl disabled:opacity-50 disabled:pointer-events-none"
         style={saveFlash ? "background: #22c55e;" : ""}
       >
-        {saveFlash ? "Saved" : "Save Setup"}
+        {saveFlash ? m.admin_setup_saved_btn() : m.admin_setup_save_btn()}
       </button>
     {/if}
   </div>
