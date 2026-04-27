@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Chapter } from "$lib/types.ts";
+  import * as m from '$lib/paraglide/messages.js';
 
   let {
     chapter,
@@ -29,8 +30,8 @@
 <div class="reward-screen">
   <!-- Current reward reveal (D-24, RWRD-02) -->
   <div class="reward-section">
-    <p class="reward-label">REWARD UNLOCKED</p>
-    <p class="chapter-name">Chapter {activeChapterIndex + 1}</p>
+    <p class="reward-label">{m.reward_unlocked_label()}</p>
+    <p class="chapter-name">{m.reward_chapter_label({ number: activeChapterIndex + 1 })}</p>
     <div class="reward-card">
       <p class="reward-text">{chapter.reward}</p>
     </div>
@@ -39,7 +40,7 @@
   <!-- Past rewards accordion (D-25, RWRD-03) — only when activeChapterIndex > 0 -->
   {#if activeChapterIndex > 0 && pastRewards.length > 0}
     <div class="past-section">
-      <p class="section-label">Past Rewards</p>
+      <p class="section-label">{m.reward_past_label()}</p>
       <div class="accordion">
         {#each pastRewards as pastChapter, i}
           <div class="accordion-item">
@@ -48,7 +49,7 @@
               onclick={() => toggleAccordion(i)}
               aria-expanded={openIndex === i}
             >
-              Chapter {i + 1}: {pastChapter.name}
+              {m.reward_past_chapter_btn({ number: i + 1, name: pastChapter.name })}
               <span class="accordion-arrow" class:open={openIndex === i}>▼</span>
             </button>
             <div class="accordion-content" class:open={openIndex === i}>

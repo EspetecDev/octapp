@@ -1,6 +1,7 @@
 <script lang="ts">
   import { gameState, sendMessage } from "$lib/socket.ts";
   import type { Chapter } from "$lib/types.ts";
+  import * as m from '$lib/paraglide/messages.js';
 
   let { chapter }: { chapter: Chapter } = $props();
 
@@ -25,7 +26,7 @@
 <div class="scavenger-screen">
   <!-- Top section: clue -->
   <div class="top-section">
-    <p class="section-label">SCAVENGER CLUE</p>
+    <p class="section-label">{m.scavenger_clue_label()}</p>
     <div class="clue-card">
       <p class="clue-text">{chapter.scavengerClue}</p>
     </div>
@@ -36,10 +37,10 @@
     <div class="hint-section">
       {#if !hintRequested}
         <button class="hint-btn" onclick={requestHint}>
-          Request Hint (−10 pts)
+          {m.scavenger_hint_btn()}
         </button>
       {:else}
-        <p class="hint-label">HINT</p>
+        <p class="hint-label">{m.scavenger_hint_label()}</p>
         <div class="hint-card">
           <p class="hint-text">{chapter.scavengerHint}</p>
         </div>
@@ -50,7 +51,7 @@
   <!-- Bottom section: CTA -->
   <div class="bottom-section">
     <button class="found-btn" onclick={foundIt}>
-      I Found It!
+      {m.scavenger_found_btn()}
     </button>
   </div>
 </div>

@@ -1,6 +1,10 @@
 <!-- Pure CSS landscape overlay — no JS required (MOBX-04, RESEARCH.md Pattern 6) -->
 <!-- This element is always in the DOM; the @media query toggles display -->
 
+<script lang="ts">
+  import * as m from '$lib/paraglide/messages.js';
+</script>
+
 <div class="landscape-overlay" aria-hidden="true">
   <!-- Inline SVG: rotate phone icon, 48px, #9ca3af color -->
   <svg
@@ -23,8 +27,8 @@
     />
     <polyline points="24,4 24,10 30,7" fill="#9ca3af" stroke="none" />
   </svg>
-  <h2>Rotate your phone</h2>
-  <p>This game is portrait only.</p>
+  <h2>{m.landscape_heading()}</h2>
+  <p>{m.landscape_body()}</p>
 </div>
 
 <style>

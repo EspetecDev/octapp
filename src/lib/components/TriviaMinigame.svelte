@@ -1,6 +1,7 @@
 <script lang="ts">
   import { sendMessage, lastEffect } from "$lib/socket.ts";
   import type { EffectActivatedPayload } from "$lib/socket.ts";
+  import * as m from '$lib/paraglide/messages.js';
   import RadialCountdown from "./RadialCountdown.svelte";
   import type { Chapter, TriviaQuestion } from "$lib/types.ts";
 
@@ -135,7 +136,7 @@
     <p class="question-text">{question.question}</p>
 
     <!-- 2×2 option grid -->
-    <div class="options-grid" role="group" aria-label="Answer options">
+    <div class="options-grid" role="group" aria-label={m.trivia_options_aria_label()}>
       {#each shuffledOptions as option}
         <button
           class="option-btn"
@@ -149,7 +150,7 @@
       {/each}
     </div>
   {:else}
-    <p class="text-base text-text-secondary text-center">Loading question...</p>
+    <p class="text-base text-text-secondary text-center">{m.trivia_loading()}</p>
   {/if}
 
   <!-- Win/Loss result overlay (D-18) — always in DOM, .visible class toggles opacity -->
@@ -161,10 +162,10 @@
     aria-live="polite"
   >
     <p class="result-heading" style="color: {resultState === 'win' ? '#f59e0b' : '#ef4444'};">
-      {resultState === "win" ? "CORRECT!" : "WRONG!"}
+      {resultState === "win" ? m.trivia_result_win() : m.trivia_result_loss()}
     </p>
     <p class="result-points" style="color: {resultState === 'win' ? '#22c55e' : '#ef4444'};">
-      {resultState === "win" ? "+50 pts" : "−20 pts"}
+      {resultState === "win" ? m.trivia_points_win() : m.trivia_points_loss()}
     </p>
   </div>
 

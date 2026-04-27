@@ -1,6 +1,7 @@
 <script lang="ts">
   import { sendMessage, lastEffect } from "$lib/socket.ts";
   import type { EffectActivatedPayload } from "$lib/socket.ts";
+  import * as m from '$lib/paraglide/messages.js';
   import RadialCountdown from "./RadialCountdown.svelte";
 
   // Internal card type
@@ -115,7 +116,7 @@
   <div
     class="card-grid"
     role="grid"
-    aria-label="Memory card grid"
+    aria-label={m.memory_grid_aria_label()}
   >
     {#each cards as card, i (card.id)}
       <div
@@ -124,7 +125,7 @@
         onclick={() => flipCard(i)}
         onkeydown={(e) => e.key === "Enter" && flipCard(i)}
         tabindex="0"
-        aria-label="Card {i + 1}{card.matched ? ', matched' : ''}"
+        aria-label={m.memory_card_aria_label({ index: i + 1 }) + (card.matched ? m.memory_card_matched_suffix() : '')}
       >
         <div class="card-inner" class:flipped={card.flipped || card.matched} class:matched={card.matched}>
           <!-- Face-down (front) -->
@@ -145,10 +146,10 @@
     aria-live="polite"
   >
     <p class="result-heading" style="color: {resultState === 'win' ? '#f59e0b' : '#ef4444'};">
-      {resultState === "win" ? "NAILED IT!" : "TIME'S UP!"}
+      {resultState === "win" ? m.memory_result_win() : m.memory_result_loss()}
     </p>
     <p class="result-points" style="color: {resultState === 'win' ? '#22c55e' : '#ef4444'};">
-      {resultState === "win" ? "+50 pts" : "−20 pts"}
+      {resultState === "win" ? m.memory_points_win() : m.memory_points_loss()}
     </p>
   </div>
 

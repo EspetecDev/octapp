@@ -1,4 +1,6 @@
 <script lang="ts">
+  import * as m from '$lib/paraglide/messages.js';
+
   let { duration, onExpire, remaining = $bindable(duration) }:
     { duration: number; onExpire: () => void; remaining?: number } = $props();
   const RADIUS = 45;
@@ -23,7 +25,7 @@
   let dashOffset = $derived(CIRCUMFERENCE * (1 - remaining / duration));
 </script>
 
-<svg viewBox="0 0 100 100" class="w-24 h-24" role="timer" aria-label="{remaining} seconds remaining">
+<svg viewBox="0 0 100 100" class="w-24 h-24" role="timer" aria-label={m.radial_aria_label({ remaining })}>
   <circle cx="50" cy="50" r={RADIUS} fill="none" stroke="#4a4a4c" stroke-width="8"/>
   <circle
     cx="50" cy="50" r={RADIUS}

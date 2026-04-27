@@ -1,5 +1,6 @@
 <script lang="ts">
   import { connectionStatus } from "$lib/socket.ts";
+  import * as m from '$lib/paraglide/messages.js';
 
   // Track previous state to control pointer-events during fade-out
   let visible = $derived($connectionStatus === "reconnecting");
@@ -9,12 +10,12 @@
   class="overlay"
   class:visible
   aria-live="assertive"
-  aria-label="Reconnecting to game"
+  aria-label={m.reconnect_aria_label()}
 >
   <div class="spinner" aria-hidden="true"></div>
-  <h2 class="text-2xl font-bold text-text-primary">Reconnecting...</h2>
+  <h2 class="text-2xl font-bold text-text-primary">{m.reconnect_heading()}</h2>
   <p class="text-base text-text-secondary text-center px-6">
-    Hold tight — we'll get you back in the game.
+    {m.reconnect_body()}
   </p>
 </div>
 
