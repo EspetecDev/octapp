@@ -77,7 +77,9 @@ Plans:
   1. The join screen shows three pill buttons labeled "English", "Català", and "Español" (native names, not ISO codes or flags), each with a minimum 44px tap target on mobile
   2. Tapping a locale pill updates all visible UI strings immediately without a page reload and without clearing any text already entered in the join form
   3. The pill corresponding to the currently active locale is visually distinct (filled or highlighted) at all times, including on initial load
-**Plans**: TBD
+**Plans**: 1 plan
+Plans:
+- [ ] 13-01-PLAN.md — Create LanguagePicker.svelte component and wire into +page.svelte join screen
 **UI hint**: yes
 
 ### Phase 14: Multi-Device Verification
