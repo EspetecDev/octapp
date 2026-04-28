@@ -29,7 +29,7 @@ All 3 phases complete. Full phase details, plans, and requirements in the milest
 **Milestone Goal:** Make all UI strings translatable and let each player pick their preferred language (Catalan, Spanish, or English) on the join screen — with no effect on other devices.
 
 - [ ] **Phase 11: i18n Infrastructure** - Paraglide v2 wired, reactive locale module live, localStorage persistence and FOUC prevention proven correct
-- [ ] **Phase 12: String Catalog** - All static UI strings extracted to en/ca/es JSON catalogs with no hardcoded strings remaining in any template
+- [x] **Phase 12: String Catalog** - All static UI strings extracted to en/ca/es JSON catalogs with no hardcoded strings remaining in any template (completed 2026-04-28)
 - [ ] **Phase 13: Language Picker UI** - 3-pill language picker on the join screen with immediate reactivity, active state, and browser auto-detection
 - [ ] **Phase 14: Multi-Device Verification** - Per-device locale isolation and production build correctness confirmed on iOS Safari and Android Chrome
 
@@ -106,6 +106,6 @@ Plans:
 | 9. Export | v1.2 | 1/1 | Complete | 2026-04-16 |
 | 10. Import + E2E Verification | v1.2 | 2/2 | Complete | 2026-04-17 |
 | 11. i18n Infrastructure | v1.3 | 2/3 | In Progress|  |
-| 12. String Catalog | v1.3 | 1/5 | In Progress | - |
+| 12. String Catalog | v1.3 | 1/5 | Complete    | 2026-04-28 |
 | 13. Language Picker UI | v1.3 | 0/? | Not started | - |
 | 14. Multi-Device Verification | v1.3 | 0/? | Not started | - |
