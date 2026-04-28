@@ -4,7 +4,6 @@
   import { gameState, lastError, sendMessage, storePlayerSession, getStoredPlayerId, getStoredSessionCode, clearPlayerSession } from "$lib/socket.ts";
   import type { GameState } from "$lib/types.ts";
   import * as m from '$lib/paraglide/messages.js';
-  import { locale, setLocale } from '$lib/i18n/locale.svelte.ts';
 
   // --- Auto-redirect: if stored session exists, redirect back instead of showing the form ---
   let autoRedirecting = $state(getStoredPlayerId() !== null && getStoredSessionCode() !== null);
@@ -316,14 +315,6 @@
   </div>
   {/if}
 </main>
-
-<!-- TODO(Phase 13): replace with real language picker UI — remove this stub -->
-<div style="position: fixed; bottom: 1rem; left: 50%; transform: translateX(-50%); display: flex; gap: 0.5rem; z-index: 999; background: #1a1a1a; padding: 0.5rem; border-radius: 0.5rem; align-items: center;">
-  <span style="font-size: 0.75rem; color: #888;">{m.test_locale_active()}</span>
-  <button onclick={() => setLocale('en')} style="opacity: {locale.current === 'en' ? 1 : 0.4}; color: white; background: none; border: 1px solid #444; border-radius: 4px; padding: 2px 8px; cursor: pointer;">en</button>
-  <button onclick={() => setLocale('ca')} style="opacity: {locale.current === 'ca' ? 1 : 0.4}; color: white; background: none; border: 1px solid #444; border-radius: 4px; padding: 2px 8px; cursor: pointer;">ca</button>
-  <button onclick={() => setLocale('es')} style="opacity: {locale.current === 'es' ? 1 : 0.4}; color: white; background: none; border: 1px solid #444; border-radius: 4px; padding: 2px 8px; cursor: pointer;">es</button>
-</div>
 
 <style>
   .error-message {
