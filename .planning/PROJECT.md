@@ -20,7 +20,7 @@ The groom has a memorable, personalized gauntlet to run through his own bachelor
 - All static UI strings extracted and translated across all views (join, groom, party, admin dashboard + setup)
 - Per-player locale — each device renders independently in their chosen locale
 
-## Current State: v1.2 Shipped (2026-04-17)
+## Current State: v1.3 in progress (Phase 12 complete 2026-04-28)
 
 - **Live URL:** https://octapp-production.up.railway.app
 - **Tech:** SvelteKit 5 + Bun WebSocket server, Railway (single replica, in-memory state)
@@ -54,9 +54,14 @@ The groom has a memorable, personalized gauntlet to run through his own bachelor
 - ✓ Admin can export full game setup as a JSON file (with iOS Safari `window.open()` fallback) — v1.2
 - ✓ Admin can import a JSON file to replace current setup — validation, confirm prompt, `restoredFromState` guard — v1.2
 
-### Active
+### Active (v1.3 in progress)
 
-*(Defined by v1.3 — see REQUIREMENTS.md)*
+- I18N-01: Paraglide v2 scaffold + en/ca/es catalogs ✓ Phase 11 + 12
+- I18N-02: Complete Catalan catalog (146 keys, 0 missing) ✓ Phase 12
+- I18N-03: Complete Spanish catalog (146 keys, 0 missing) ✓ Phase 12
+- I18N-04: User-authored content excluded from catalogs ✓ Phase 12
+- I18N-05: Language picker UI on join screen — Phase 13
+- I18N-06: Per-player locale persistence (localStorage) — Phase 14
 
 ### Out of Scope
 
