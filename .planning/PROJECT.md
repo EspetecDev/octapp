@@ -25,7 +25,7 @@ The groom has a memorable, personalized gauntlet to run through his own bachelor
 - **Live URL:** https://octapp-production.up.railway.app
 - **Tech:** SvelteKit 5 + Bun WebSocket server, Railway (single replica, in-memory state)
 - **LoC:** ~3,847 (TypeScript/Svelte)
-- **Coverage:** 10 phases, 31 plans complete
+- **Coverage:** 9 phases, 35 plans complete
 
 ## Requirements
 
@@ -53,13 +53,10 @@ The groom has a memorable, personalized gauntlet to run through his own bachelor
 - ✓ `GameConfig` TypeScript type + `serializeConfig` + `validateConfig` as a pure isolated module — v1.2
 - ✓ Admin can export full game setup as a JSON file (with iOS Safari `window.open()` fallback) — v1.2
 - ✓ Admin can import a JSON file to replace current setup — validation, confirm prompt, `restoredFromState` guard — v1.2
+- ✓ Paraglide v2 i18n scaffold + en/ca/es catalogs (146 keys each, 0 missing, user-authored content excluded) — Validated in Phase 11 + 12 (I18N-01, I18N-02, I18N-03, I18N-04)
 
 ### Active (v1.3 in progress)
 
-- I18N-01: Paraglide v2 scaffold + en/ca/es catalogs ✓ Phase 11 + 12
-- I18N-02: Complete Catalan catalog (146 keys, 0 missing) ✓ Phase 12
-- I18N-03: Complete Spanish catalog (146 keys, 0 missing) ✓ Phase 12
-- I18N-04: User-authored content excluded from catalogs ✓ Phase 12
 - I18N-05: Language picker UI on join screen — Phase 13
 - I18N-06: Per-player locale persistence (localStorage) — Phase 14
 
@@ -126,4 +123,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-17 — v1.3 Localization started*
+*Last updated: 2026-04-28 — Phase 12 complete, string catalog (146 keys, en/ca/es)*
