@@ -4,6 +4,8 @@
   import { gameState, lastError, sendMessage, storePlayerSession, getStoredPlayerId, getStoredSessionCode, clearPlayerSession } from "$lib/socket.ts";
   import type { GameState } from "$lib/types.ts";
   import * as m from '$lib/paraglide/messages.js';
+  import LanguagePicker from '$lib/components/LanguagePicker.svelte';
+  import { locale } from '$lib/i18n/locale.svelte.ts';
 
   // --- Auto-redirect: if stored session exists, redirect back instead of showing the form ---
   let autoRedirecting = $state(getStoredPlayerId() !== null && getStoredSessionCode() !== null);
@@ -177,7 +179,7 @@
   }
 </script>
 
-<main class="flex min-h-[100dvh] flex-col items-center justify-center bg-bg px-5 py-8">
+<main lang={locale.current} class="flex min-h-[100dvh] flex-col items-center justify-center bg-bg px-5 py-8">
   {#if autoRedirecting}
     <!-- Reconnecting spinner — shown while we check if stored session is still valid -->
     <div class="flex flex-col items-center gap-4">
@@ -186,6 +188,7 @@
     </div>
   {:else}
   <div class="w-full flex flex-col gap-6">
+    <LanguagePicker />
 
     <!-- App title -->
     <div class="text-center">
