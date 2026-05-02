@@ -106,6 +106,10 @@
   "admin_dash_role_groom": "Nuvi",
   "admin_dash_role_group": "Grup",
   "admin_dash_session_aria_label": "Codi de sessió: {code}",
+  "admin_dash_group_link_label": "Grup",
+  "admin_dash_groom_link_label": "Nuvi",
+  "admin_dash_copy_btn": "Copiar",
+  "admin_dash_copied_btn": "Copiat!",
 
   "admin_setup_page_title": "Configurar joc",
   "admin_setup_back_link": "Tornar al tauler",

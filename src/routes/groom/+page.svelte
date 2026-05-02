@@ -103,8 +103,12 @@
       return;
     }
     // No stored session — auto-join as groom without going through the join form
+    const groomToken = new URLSearchParams(window.location.search).get("token") ?? "";
     try {
-      const res = await fetch("/api/groom/join", { method: "POST" });
+      const res = await fetch("/api/groom/join", {
+        method: "POST",
+        headers: groomToken ? { "x-groom-token": groomToken } : {},
+      });
       if (res.ok) {
         const { playerId, sessionCode } = await res.json() as { playerId: string; sessionCode: string };
         storePlayerSession(playerId, sessionCode);
