@@ -7,7 +7,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <!-- FOUC prevention: read locale synchronously before SPA boots (D-04, INFRA-05) -->
-    <!-- Must be placed BEFORE %sveltekit.head% so it runs before SvelteKit's JS -->
+    <!-- Must be placed BEFORE SvelteKit's head injection so it runs before SvelteKit's JS -->
     <!-- Uses ES5 syntax (var, indexOf) for maximum browser compatibility incl. old iOS Safari -->
     <script>
       (function() {
