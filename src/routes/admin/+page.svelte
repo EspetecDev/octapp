@@ -7,8 +7,14 @@
 
   let authorized = $state<boolean | null>(null); // null = checking
   let sessionCode = $state<string | null>(null);
+  let groomToken = $state<string | null>(null);
+  let origin = $state<string>("");
   let errorMsg = $state<string | null>(null);
   let token = $state<string>("");
+  let copiedKey = $state<string | null>(null);
+
+  let groupUrl = $derived(`${origin}/`);
+  let groomUrl = $derived(`${origin}/groom${groomToken ? `?token=${groomToken}` : ""}`);
 
   // Players derived from live game state
   let players = $derived($gameState?.players ?? []);
@@ -41,7 +47,14 @@
     sendMessage({ type: "REPEAT_CHAPTER" });
   }
 
+  async function copyLink(url: string, key: string) {
+    await navigator.clipboard.writeText(url);
+    copiedKey = key;
+    setTimeout(() => { copiedKey = null; }, 2000);
+  }
+
   onMount(async () => {
+    origin = window.location.origin;
     const adminToken = $page.url.searchParams.get("token") ?? "";
     token = adminToken;
     if (!adminToken) {
@@ -56,8 +69,9 @@
         errorMsg = m.admin_dash_access_denied();
         return;
       }
-      const data = await res.json() as { sessionCode: string };
+      const data = await res.json() as { sessionCode: string; groomToken: string | null };
       sessionCode = data.sessionCode;
+      groomToken = data.groomToken;
       authorized = true;
     } catch {
       authorized = false;
@@ -100,6 +114,32 @@
       {#if groomPlayer}
         <p class="text-[14px] text-text-secondary">{m.admin_dash_groom_role_claimed()}</p>
       {/if}
+
+      <!-- Shareable links -->
+      <div class="flex flex-col gap-2 w-full">
+        <!-- Group link -->
+        <div class="flex items-center gap-3 rounded-lg bg-surface border border-border px-3 py-2">
+          <span class="text-[14px] text-text-secondary w-12 flex-shrink-0">{m.admin_dash_group_link_label()}</span>
+          <span class="text-[12px] text-text-primary flex-1 truncate font-mono">{groupUrl}</span>
+          <button
+            onclick={() => copyLink(groupUrl, "group")}
+            class="text-[12px] text-accent-admin flex-shrink-0 min-w-[52px] text-right"
+          >
+            {copiedKey === "group" ? m.admin_dash_copied_btn() : m.admin_dash_copy_btn()}
+          </button>
+        </div>
+        <!-- Groom link -->
+        <div class="flex items-center gap-3 rounded-lg bg-surface border border-border px-3 py-2">
+          <span class="text-[14px] text-text-secondary w-12 flex-shrink-0">{m.admin_dash_groom_link_label()}</span>
+          <span class="text-[12px] text-text-primary flex-1 truncate font-mono">{groomUrl}</span>
+          <button
+            onclick={() => copyLink(groomUrl, "groom")}
+            class="text-[12px] text-accent-admin flex-shrink-0 min-w-[52px] text-right"
+          >
+            {copiedKey === "groom" ? m.admin_dash_copied_btn() : m.admin_dash_copy_btn()}
+          </button>
+        </div>
+      </div>
     </section>
 
     <!-- Zone 2: Configure Game (lobby only — disappears after first chapter unlocked, D-03) -->

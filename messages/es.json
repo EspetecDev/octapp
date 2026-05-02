@@ -106,6 +106,10 @@
   "admin_dash_role_groom": "Novio",
   "admin_dash_role_group": "Grupo",
   "admin_dash_session_aria_label": "Código de sesión: {code}",
+  "admin_dash_group_link_label": "Grupo",
+  "admin_dash_groom_link_label": "Novio",
+  "admin_dash_copy_btn": "Copiar",
+  "admin_dash_copied_btn": "¡Copiado!",
 
   "admin_setup_page_title": "Configurar juego",
   "admin_setup_back_link": "Volver al panel",

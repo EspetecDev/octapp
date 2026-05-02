@@ -13,23 +13,15 @@
   // --- Form state ---
   let code = $state("");          // 6-char join code
   let name = $state("");          // display name
-  let role = $state<"groom" | "group" | null>(null);
+  const role = "group";
   let submitting = $state(false);
   let submitError = $state<string | null>(null);
   let submitTimeout: ReturnType<typeof setTimeout> | null = null;
-
-  // --- Derived: loading state (before first STATE_SYNC from server) ---
-  // Groom button must be disabled while loading to avoid role selection before server confirms state
-  let gameStateLoading = $derived($gameState === null);
-
-  // --- Derived: is groom role already taken? (real-time from server) ---
-  let groomTaken = $derived(($gameState?.groomPlayerId ?? null) !== null);
 
   // --- Form validity ---
   let isValid = $derived(
     code.trim().length === 6 &&
     name.trim().length >= 1 &&
-    role !== null &&
     !submitting
   );
 
@@ -39,14 +31,6 @@
     // Strip whitespace, uppercase, max 6
     code = input.value.toUpperCase().replace(/\s/g, "").slice(0, 6);
     input.value = code;
-  }
-
-  // --- Role selection ---
-  function selectRole(selected: "groom" | "group") {
-    if (selected === "groom" && (groomTaken || gameStateLoading)) return;
-    role = selected;
-    // Haptic feedback — single 50ms pulse (UI-SPEC Interaction Constraints)
-    navigator.vibrate?.(50);
   }
 
   // --- Watch for server error response (lastError store) ---
@@ -99,9 +83,6 @@
         submitError = err.message;
         // Re-focus code input
         setTimeout(() => (document.querySelector("#code-input") as HTMLInputElement | null)?.focus(), 0);
-      } else if (err.code === "GROOM_TAKEN") {
-        role = "group";
-        submitError = err.message;
       } else {
         submitError = err.message ?? m.join_error_generic();
       }
@@ -246,50 +227,6 @@
         />
       </div>
 
-      <!-- Role selector -->
-      <div class="flex flex-col gap-1">
-        <span class="text-[14px] text-text-secondary">{m.join_role_label()}</span>
-        <div class="flex gap-2">
-          <!-- Groom button: disabled when loading (no STATE_SYNC yet) OR groom already taken -->
-          <button
-            type="button"
-            class="
-              flex-1 h-14 rounded-lg font-bold text-base transition-all duration-150
-              {role === 'groom'
-                ? 'bg-accent-groom text-[#0f0f0f] border-2 border-accent-groom'
-                : 'bg-surface border-2 border-border text-text-primary'}
-              {(groomTaken || gameStateLoading) ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}
-              min-h-[44px]
-            "
-            onclick={() => selectRole("groom")}
-            disabled={groomTaken || gameStateLoading || submitting}
-            aria-pressed={role === "groom"}
-            title={gameStateLoading ? m.join_groom_title_loading() : groomTaken ? m.join_groom_title_taken() : undefined}
-          >
-            {gameStateLoading ? m.join_groom_btn_loading() : m.join_groom_btn()}
-          </button>
-          <!-- Group button -->
-          <button
-            type="button"
-            class="
-              flex-1 h-14 rounded-lg font-bold text-base transition-all duration-150
-              {role === 'group'
-                ? 'bg-accent-group text-text-primary border-2 border-accent-group'
-                : 'bg-surface border-2 border-border text-text-primary'}
-              min-h-[44px] cursor-pointer
-            "
-            onclick={() => selectRole("group")}
-            disabled={submitting}
-            aria-pressed={role === "group"}
-          >
-            {m.join_group_btn()}
-          </button>
-        </div>
-        {#if submitError && submitError.includes("Groom role")}
-          <p class="text-[14px] text-destructive error-message">{submitError}</p>
-        {/if}
-      </div>
-
       <!-- CTA button -->
       <button
         type="submit"
@@ -310,7 +247,7 @@
       </button>
 
       <!-- Generic error toast area -->
-      {#if submitError && !submitError.includes("match") && !submitError.includes("code") && !submitError.includes("session") && !submitError.includes("Groom role")}
+      {#if submitError && !submitError.includes("match") && !submitError.includes("code") && !submitError.includes("session")}
         <p class="text-[14px] text-destructive text-center error-message">{submitError}</p>
       {/if}
     </form>
