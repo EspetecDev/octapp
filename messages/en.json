@@ -105,6 +105,10 @@
   "admin_dash_role_groom": "Groom",
   "admin_dash_role_group": "Group",
   "admin_dash_session_aria_label": "Session code: {code}",
+  "admin_dash_group_link_label": "Group",
+  "admin_dash_groom_link_label": "Groom",
+  "admin_dash_copy_btn": "Copy",
+  "admin_dash_copied_btn": "Copied!",
 
   "admin_setup_page_title": "Configure Game",
   "admin_setup_back_link": "Back to Dashboard",

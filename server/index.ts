@@ -9,6 +9,7 @@ const BUILD_DIR = new URL("../build", import.meta.url).pathname;
 const sessionCode = createSession();
 console.log(`[octapp] Session created. Join code: ${sessionCode}`);
 console.log(`[octapp] Admin token: ${process.env.ADMIN_TOKEN ?? "(not set)"}`);
+console.log(`[octapp] Groom token: ${process.env.GROOM_TOKEN ?? "(not set)"}`);;
 
 const server = Bun.serve<WSData>({
   port: Number(process.env.PORT ?? 3000),
@@ -36,11 +37,21 @@ const server = Bun.serve<WSData>({
         return new Response("Unauthorized", { status: 401 });
       }
       const state = getSession(sessionCode);
-      return Response.json({ sessionCode: state?.sessionCode ?? sessionCode });
+      return Response.json({
+        sessionCode: state?.sessionCode ?? sessionCode,
+        groomToken: process.env.GROOM_TOKEN ?? null,
+      });
     }
 
-    // --- Groom auto-join: anyone can land on /groom without going through the join form ---
+    // --- Groom auto-join: protected by GROOM_TOKEN if set ---
     if (url.pathname === "/api/groom/join" && req.method === "POST") {
+      const groomToken = process.env.GROOM_TOKEN;
+      if (groomToken) {
+        const provided = req.headers.get("x-groom-token");
+        if (!provided || provided !== groomToken) {
+          return new Response("Unauthorized", { status: 401 });
+        }
+      }
       const state = getState();
       if (!state) {
         return new Response("No active session", { status: 503 });
