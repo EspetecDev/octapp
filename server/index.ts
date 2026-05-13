@@ -1,20 +1,39 @@
 import { createSession, getSession } from "./session.ts";
 import { getState, setState, broadcastState } from "./state.ts";
 import { handleOpen, handleMessage, handleClose, type WSData } from "./handlers.ts";
+import {
+  createGameConfig,
+  deleteGameConfig,
+  getGameConfig,
+  listGameConfigs,
+  updateGameConfig,
+  validateConfig,
+} from "./gameConfigs.ts";
 
 const BUILD_DIR = new URL("../build", import.meta.url).pathname;
 
-// Create the initial game session on server start
-// Admin will be given the session code when they hit /api/admin/session
-const sessionCode = createSession();
-console.log(`[octapp] Session created. Join code: ${sessionCode}`);
+let sessionCode: string | null = null;
+console.log("[octapp] No active session. Launch one from the admin config tool.");
 console.log(`[octapp] Admin token: ${process.env.ADMIN_TOKEN ?? "(not set)"}`);
 console.log(`[octapp] Groom token: ${process.env.GROOM_TOKEN ?? "(not set)"}`);;
+
+function isAuthorizedAdmin(req: Request, url: URL): boolean {
+  const token = url.searchParams.get("token") ?? req.headers.get("x-admin-token");
+  return Boolean(token && token === process.env.ADMIN_TOKEN);
+}
+
+async function readJson(req: Request): Promise<unknown> {
+  try {
+    return await req.json();
+  } catch {
+    return null;
+  }
+}
 
 const server = Bun.serve<WSData>({
   port: Number(process.env.PORT ?? 3000),
 
-  fetch(req, server) {
+  async fetch(req, server) {
     const url = new URL(req.url);
 
     // --- Health check (railway.toml healthcheckPath="/health") ---
@@ -31,16 +50,80 @@ const server = Bun.serve<WSData>({
     }
 
     // --- Admin token gate (SESS-05) ---
-    if (url.pathname === "/api/admin/session") {
-      const token = url.searchParams.get("token") ?? req.headers.get("x-admin-token");
-      if (!token || token !== process.env.ADMIN_TOKEN) {
+    if (url.pathname.startsWith("/api/admin/")) {
+      if (!isAuthorizedAdmin(req, url)) {
         return new Response("Unauthorized", { status: 401 });
       }
+    }
+
+    if (url.pathname === "/api/admin/session") {
       const state = getSession(sessionCode);
       return Response.json({
-        sessionCode: state?.sessionCode ?? sessionCode,
+        sessionCode: state?.sessionCode ?? null,
         groomToken: process.env.GROOM_TOKEN ?? null,
+        hasActiveSession: state !== null,
       });
+    }
+
+    if (url.pathname === "/api/admin/configs" && req.method === "GET") {
+      return Response.json({ configs: await listGameConfigs() });
+    }
+
+    if (url.pathname === "/api/admin/configs" && req.method === "POST") {
+      const body = await readJson(req) as { name?: unknown; config?: unknown } | null;
+      const result = validateConfig(body?.config);
+      if (!result.ok) {
+        return Response.json({ error: result.error }, { status: 400 });
+      }
+      const record = await createGameConfig(
+        typeof body?.name === "string" ? body.name : "Untitled game",
+        result.config
+      );
+      return Response.json(record, { status: 201 });
+    }
+
+    const configMatch = url.pathname.match(/^\/api\/admin\/configs\/([a-zA-Z0-9_-]+)$/);
+    if (configMatch && req.method === "GET") {
+      const record = await getGameConfig(configMatch[1]);
+      if (!record) return new Response("Not found", { status: 404 });
+      return Response.json(record);
+    }
+
+    if (configMatch && req.method === "PUT") {
+      const body = await readJson(req) as { name?: unknown; config?: unknown } | null;
+      const result = validateConfig(body?.config);
+      if (!result.ok) {
+        return Response.json({ error: result.error }, { status: 400 });
+      }
+      const record = await updateGameConfig(
+        configMatch[1],
+        typeof body?.name === "string" ? body.name : "Untitled game",
+        result.config
+      );
+      if (!record) return new Response("Not found", { status: 404 });
+      return Response.json(record);
+    }
+
+    if (configMatch && req.method === "DELETE") {
+      const deleted = await deleteGameConfig(configMatch[1]);
+      return deleted ? new Response(null, { status: 204 }) : new Response("Not found", { status: 404 });
+    }
+
+    if (url.pathname === "/api/admin/sessions/launch" && req.method === "POST") {
+      const body = await readJson(req) as { configId?: unknown } | null;
+      if (typeof body?.configId !== "string") {
+        return Response.json({ error: "Missing configId" }, { status: 400 });
+      }
+      const record = await getGameConfig(body.configId);
+      if (!record) {
+        return Response.json({ error: "Config not found" }, { status: 404 });
+      }
+      sessionCode = createSession(record.config);
+      const state = getState();
+      if (state) {
+        server.publish("game", JSON.stringify({ type: "STATE_SYNC", state }));
+      }
+      return Response.json({ sessionCode, configId: record.id });
     }
 
     // --- Groom auto-join: protected by GROOM_TOKEN if set ---
@@ -54,7 +137,7 @@ const server = Bun.serve<WSData>({
       }
       const state = getState();
       if (!state) {
-        return new Response("No active session", { status: 503 });
+        return Response.json({ error: "No active session" }, { status: 503 });
       }
       if (state.groomPlayerId !== null) {
         return Response.json({ error: "Groom role already taken" }, { status: 409 });

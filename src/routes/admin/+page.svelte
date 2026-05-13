@@ -2,11 +2,12 @@
   import { onMount } from "svelte";
   import { page } from "$app/stores";
   import { gameState, sendMessage } from "$lib/socket.ts";
-  import type { Player } from "$lib/types.ts";
+  import type { DareProposal, Milestone, Player } from "$lib/types.ts";
   import * as m from '$lib/paraglide/messages.js';
 
   let authorized = $state<boolean | null>(null); // null = checking
   let sessionCode = $state<string | null>(null);
+  let hasActiveSession = $state(false);
   let groomToken = $state<string | null>(null);
   let origin = $state<string>("");
   let errorMsg = $state<string | null>(null);
@@ -33,6 +34,14 @@
   let activeChapter = $derived(
     activeChapterIndex !== null ? ($gameState?.chapters[activeChapterIndex] ?? null) : null
   );
+  let milestones = $derived([...(($gameState?.milestones ?? []) as Milestone[])].sort((a, b) => a.points - b.points));
+  let groomScore = $derived($gameState?.groomScore ?? 0);
+  let finalMilestone = $derived(milestones[milestones.length - 1] ?? null);
+  let progressPercent = $derived(finalMilestone ? Math.min(100, Math.round((groomScore / finalMilestone.points) * 100)) : 0);
+  let dares = $derived(($gameState?.dareProposals ?? []) as DareProposal[]);
+  let votingDares = $derived(dares.filter((dare) => dare.status === "voting"));
+  let activeDares = $derived(dares.filter((dare) => dare.status === "active"));
+  let resolvedDares = $derived(dares.filter((dare) => ["completed", "failed", "deleted"].includes(dare.status)).slice(0, 6));
 
   function unlockNextChapter() {
     sendMessage({ type: "UNLOCK_CHAPTER" });
@@ -45,6 +54,38 @@
 
   function repeatChapter() {
     sendMessage({ type: "REPEAT_CHAPTER" });
+  }
+
+  function resolveDare(dareId: string, result: "completed" | "failed") {
+    sendMessage({ type: "RESOLVE_DARE", dareId, result });
+  }
+
+  function deleteDare(dareId: string) {
+    if (!confirm(m.admin_dash_delete_dare_confirm())) return;
+    sendMessage({ type: "DELETE_DARE", dareId });
+  }
+
+  function playerName(playerId: string) {
+    return players.find((player) => player.id === playerId)?.name ?? m.admin_dash_unknown_player();
+  }
+
+  function connectedYesVotes(dare: DareProposal) {
+    const connectedIds = new Set(groupPlayers.filter((player) => player.connected).map((player) => player.id));
+    return dare.votes.filter((id) => connectedIds.has(id)).length;
+  }
+
+  function voteLabel(dare: DareProposal) {
+    const connectedCount = groupPlayers.filter((player) => player.connected).length;
+    const needed = Math.floor(connectedCount / 2) + 1;
+    return m.admin_dash_dare_votes({ yes: connectedYesVotes(dare), needed, total: connectedCount });
+  }
+
+  function dareStatus(status: DareProposal["status"]) {
+    if (status === "completed") return m.admin_dash_dare_status_completed();
+    if (status === "failed") return m.admin_dash_dare_status_failed();
+    if (status === "deleted") return m.admin_dash_dare_status_deleted();
+    if (status === "active") return m.admin_dash_dare_status_active();
+    return m.admin_dash_dare_status_voting();
   }
 
   async function copyLink(url: string, key: string) {
@@ -69,9 +110,10 @@
         errorMsg = m.admin_dash_access_denied();
         return;
       }
-      const data = await res.json() as { sessionCode: string; groomToken: string | null };
+      const data = await res.json() as { sessionCode: string | null; groomToken: string | null; hasActiveSession: boolean };
       sessionCode = data.sessionCode;
       groomToken = data.groomToken;
+      hasActiveSession = data.hasActiveSession;
       authorized = true;
     } catch {
       authorized = false;
@@ -107,9 +149,11 @@
           class="text-[40px] font-bold text-text-primary tracking-[0.1em]"
           aria-label={m.admin_dash_session_aria_label({ code: sessionCode ?? '' })}
         >
-          {sessionCode}
+          {sessionCode ?? "------"}
         </p>
-        <p class="text-base text-text-secondary mt-1">{m.admin_dash_players_join_url()}</p>
+        <p class="text-base text-text-secondary mt-1">
+          {hasActiveSession ? m.admin_dash_players_join_url() : "Launch a config to create a session code."}
+        </p>
       </div>
       {#if groomPlayer}
         <p class="text-[14px] text-text-secondary">{m.admin_dash_groom_role_claimed()}</p>
@@ -143,13 +187,13 @@
     </section>
 
     <!-- Zone 2: Configure Game (lobby only — disappears after first chapter unlocked, D-03) -->
-    {#if isLobby}
+    {#if !hasActiveSession || isLobby}
       <section class="px-6 pb-4">
         <a
           href="/admin/setup?token={token}"
           class="block text-[14px] text-accent-admin"
         >
-          {m.admin_dash_configure_link()}
+          {hasActiveSession ? m.admin_dash_configure_link() : "Open game configs"}
         </a>
       </section>
     {/if}
@@ -158,7 +202,9 @@
     <section class="px-6 pb-6">
       <p class="text-[14px] text-text-secondary mb-3">{m.admin_dash_game_progress_header()}</p>
 
-      {#if isLobby && chapterCount === 0}
+      {#if !hasActiveSession}
+        <p class="text-base text-text-secondary">No active session. Launch a saved config when you are ready to test.</p>
+      {:else if isLobby && chapterCount === 0}
         <!-- No chapters configured yet -->
         <p class="text-base text-text-secondary">{m.admin_dash_no_chapters()}</p>
       {:else if activeChapterIndex === null}
@@ -214,7 +260,77 @@
       </button>
     </section>
 
-    <!-- Zone 4: Player list -->
+    <!-- Zone 4: Global progress and dares -->
+    <section class="px-6 pb-8">
+      <div class="progress-panel">
+        <div class="progress-row">
+          <span>{m.admin_dash_global_score_label()}</span>
+          <strong>{m.admin_dash_score_points({ score: groomScore })}</strong>
+        </div>
+        <div class="progress-track" aria-hidden="true">
+          <div class="progress-fill" style="width: {progressPercent}%;"></div>
+        </div>
+        <div class="milestone-list">
+          {#each milestones as milestone (milestone.id)}
+            <div class:unlocked={milestone.unlocked}>
+              <span>{m.admin_dash_milestone_points({ points: milestone.points })}</span>
+              <strong>{milestone.reward}</strong>
+            </div>
+          {/each}
+        </div>
+      </div>
+
+      <p class="text-[14px] text-text-secondary mt-6 mb-3">{m.admin_dash_active_dares_header()}</p>
+      {#if activeDares.length === 0}
+        <p class="text-base text-text-secondary">{m.admin_dash_active_dares_empty()}</p>
+      {:else}
+        <ul class="admin-dare-list">
+          {#each activeDares as dare (dare.id)}
+            <li>
+              <div class="admin-dare-top">
+                <span>{m.admin_dash_dare_points({ points: dare.points })}</span>
+                <small>{m.admin_dash_dare_proposed_by({ name: playerName(dare.proposedBy) })}</small>
+              </div>
+              <p>{dare.text}</p>
+              <div class="admin-dare-actions">
+                <button class="complete" onclick={() => resolveDare(dare.id, "completed")}>{m.admin_dash_complete_dare_btn()}</button>
+                <button onclick={() => resolveDare(dare.id, "failed")}>{m.admin_dash_fail_dare_btn()}</button>
+                <button class="delete" aria-label={m.admin_dash_delete_dare_aria()} onclick={() => deleteDare(dare.id)}>×</button>
+              </div>
+            </li>
+          {/each}
+        </ul>
+      {/if}
+
+      <p class="text-[14px] text-text-secondary mt-6 mb-3">{m.admin_dash_voting_dares_header()}</p>
+      {#if votingDares.length === 0}
+        <p class="text-base text-text-secondary">{m.admin_dash_voting_dares_empty()}</p>
+      {:else}
+        <ul class="admin-dare-list">
+          {#each votingDares as dare (dare.id)}
+            <li>
+              <div class="admin-dare-top">
+                <span>{m.admin_dash_dare_points({ points: dare.points })}</span>
+                <small>{voteLabel(dare)}</small>
+              </div>
+              <p>{dare.text}</p>
+              <button class="delete full" onclick={() => deleteDare(dare.id)}>{m.admin_dash_delete_dare_btn()}</button>
+            </li>
+          {/each}
+        </ul>
+      {/if}
+
+      {#if resolvedDares.length > 0}
+        <p class="text-[14px] text-text-secondary mt-6 mb-3">{m.admin_dash_resolved_dares_header()}</p>
+        <ul class="resolved-list">
+          {#each resolvedDares as dare (dare.id)}
+            <li><span>{dare.text}</span><strong>{dareStatus(dare.status)}</strong></li>
+          {/each}
+        </ul>
+      {/if}
+    </section>
+
+    <!-- Zone 5: Player list -->
     <section
       class="flex-1 overflow-y-auto px-6 pb-8"
       style="-webkit-overflow-scrolling: touch; overscroll-behavior: contain;"
@@ -262,7 +378,7 @@
       {/if}
     </section>
 
-    <!-- Zone 5: Scores -->
+    <!-- Zone 6: Legacy scores mirror -->
     <section class="px-6 pb-8">
       <p class="text-[14px] text-text-secondary mb-3">{m.admin_dash_scores_header()}</p>
 
@@ -289,6 +405,156 @@
 {/if}
 
 <style>
+  .progress-panel {
+    border: 1px solid #4a4a4c;
+    border-radius: 8px;
+    background: #242426;
+    padding: 16px;
+  }
+
+  .progress-row,
+  .admin-dare-top,
+  .resolved-list li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .progress-row span {
+    color: #9ca3af;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+
+  .progress-row strong {
+    color: #f59e0b;
+    font-size: 24px;
+  }
+
+  .progress-track {
+    height: 12px;
+    overflow: hidden;
+    border-radius: 9999px;
+    background: #0f0f0f;
+    margin: 12px 0;
+  }
+
+  .progress-fill {
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #f59e0b, #22c55e);
+  }
+
+  .milestone-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .milestone-list div {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 40px;
+    border: 1px solid #4a4a4c;
+    border-radius: 8px;
+    padding: 8px 12px;
+  }
+
+  .milestone-list div.unlocked {
+    border-color: #22c55e;
+  }
+
+  .milestone-list span,
+  .admin-dare-top span {
+    color: #f59e0b;
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  .milestone-list strong {
+    color: #f9fafb;
+    font-size: 14px;
+    text-align: right;
+  }
+
+  .admin-dare-list,
+  .resolved-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+  }
+
+  .admin-dare-list li,
+  .resolved-list li {
+    border: 1px solid #4a4a4c;
+    border-radius: 8px;
+    background: #242426;
+    padding: 12px;
+  }
+
+  .admin-dare-top small {
+    color: #9ca3af;
+    font-size: 12px;
+  }
+
+  .admin-dare-list p {
+    color: #f9fafb;
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1.35;
+    margin: 8px 0 12px;
+  }
+
+  .admin-dare-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr 44px;
+    gap: 8px;
+  }
+
+  .admin-dare-actions button,
+  .admin-dare-list button.full {
+    min-height: 44px;
+    border: 1px solid #4a4a4c;
+    border-radius: 8px;
+    background: #0f0f0f;
+    color: #f9fafb;
+    font-weight: 700;
+  }
+
+  .admin-dare-actions .complete {
+    border-color: #22c55e;
+    color: #22c55e;
+  }
+
+  .admin-dare-actions .delete,
+  .admin-dare-list button.delete {
+    border-color: #ef4444;
+    color: #ef4444;
+  }
+
+  .resolved-list span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #f9fafb;
+  }
+
+  .resolved-list strong {
+    color: #9ca3af;
+    font-size: 12px;
+    text-transform: uppercase;
+  }
+
   .player-chip {
     animation: chipAppear 200ms cubic-bezier(0.0, 0.0, 0.2, 1) both;
   }

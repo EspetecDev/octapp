@@ -1,4 +1,4 @@
-import { initState, getState, type GameState } from "./state.ts";
+import { initState, getState, type GameConfig, type GameState } from "./state.ts";
 
 // Visually unambiguous characters only — avoids 0/O/1/I/l confusion at a noisy venue
 // Source: RESEARCH.md Don't Hand-Roll "Session code generation"
@@ -11,13 +11,13 @@ export function generateJoinCode(length = 6): string {
   ).join("");
 }
 
-export function createSession(): string {
+export function createSession(config?: GameConfig): string {
   const code = generateJoinCode(6);
-  initState(code);
+  initState(code, config);
   return code;
 }
 
-export function getSession(code: string): GameState | null {
+export function getSession(code: string | null): GameState | null {
   const state = getState();
   if (!state || state.sessionCode !== code) return null;
   return state;

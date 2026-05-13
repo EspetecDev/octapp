@@ -1,10 +1,9 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { beforeNavigate } from "$app/navigation";
-  import { gameState, getStoredPlayerId, storePlayerSession, lastEffect, sendMessage } from "$lib/socket.ts";
-  import type { EffectActivatedPayload } from "$lib/socket.ts";
+  import { gameState, getStoredPlayerId, storePlayerSession, sendMessage } from "$lib/socket.ts";
   import { acquireWakeLock, releaseWakeLock } from "$lib/wakeLock.ts";
-  import type { Player, Chapter } from "$lib/types.ts";
+  import type { DareProposal, Milestone, Player, Chapter } from "$lib/types.ts";
   import * as m from '$lib/paraglide/messages.js';
   // Component imports — implemented in Plans 03, 04, 05, 06
   // These files will be created by downstream plans; import them now for the router to work
@@ -37,6 +36,15 @@
     return "reward";
   });
 
+  let milestones = $derived([...(($gameState?.milestones ?? []) as Milestone[])].sort((a, b) => a.points - b.points));
+  let groomScore = $derived($gameState?.groomScore ?? 0);
+  let finalMilestone = $derived(milestones[milestones.length - 1] ?? null);
+  let nextMilestone = $derived(milestones.find((milestone) => !milestone.unlocked) ?? finalMilestone);
+  let progressPercent = $derived(
+    finalMilestone ? Math.min(100, Math.round((groomScore / finalMilestone.points) * 100)) : 0
+  );
+  let activeDares = $derived((($gameState?.dareProposals ?? []) as DareProposal[]).filter((dare) => dare.status === "active"));
+
   // Recap card state (GAME-05)
   let showRecap = $state(false);
   let recapChapterIndex = $state<number | null>(null);
@@ -66,33 +74,6 @@
       releaseWakeLock();
     }
   });
-
-  // Announcement overlay state (GRPX-06, D-07/D-08/D-09)
-  // Page-level only — minigame components handle gameplay effects; this is for the theatrical announcement
-  let showAnnouncement = $state(false);
-  let announcementData = $state<EffectActivatedPayload | null>(null);
-  let announceDismissTimer: ReturnType<typeof setTimeout> | null = null;
-
-  $effect(() => {
-    const effect = $lastEffect;
-    if (!effect) return;
-    announcementData = effect;
-    showAnnouncement = true;
-    if (announceDismissTimer) clearTimeout(announceDismissTimer);
-    announceDismissTimer = setTimeout(() => {
-      showAnnouncement = false;
-    }, 2000);
-  });
-
-  let isSabotage = $derived(
-    announcementData?.effectType === "timer_reduce" ||
-    announcementData?.effectType === "scramble_options" ||
-    announcementData?.effectType === "distraction"
-  );
-
-  let activatingPlayerName = $derived(
-    $gameState?.players.find((p) => p.id === announcementData?.activatedBy)?.name?.toUpperCase() ?? ""
-  );
 
   onMount(async () => {
     // Push dummy history entry so Android back button hits this entry first (FIX-01, D-02)
@@ -165,6 +146,39 @@
     <RewardScreen chapter={activeChapter} activeChapterIndex={$gameState?.activeChapterIndex ?? 0} chapters={$gameState?.chapters ?? []} />
   {/if}
 
+  {#if $gameState}
+    <aside class="groom-score-hud" aria-label={m.groom_score_aria_label()}>
+      <div class="hud-row">
+        <span>{m.groom_score_label()}</span>
+        <strong>{m.groom_score_points({ score: groomScore })}</strong>
+      </div>
+      <div class="hud-track" aria-hidden="true">
+        <div class="hud-fill" style="width: {progressPercent}%;"></div>
+      </div>
+      <p>
+        {#if nextMilestone && !nextMilestone.unlocked}
+          {m.groom_next_milestone({ points: nextMilestone.points, reward: nextMilestone.reward })}
+        {:else if finalMilestone?.unlocked}
+          {m.groom_all_milestones_unlocked()}
+        {:else}
+          {m.groom_no_milestones()}
+        {/if}
+      </p>
+    </aside>
+  {/if}
+
+  {#if activeDares.length > 0}
+    <aside class="groom-dares-panel">
+      <p class="groom-dares-title">{m.groom_active_dares_header()}</p>
+      {#each activeDares.slice(0, 2) as dare (dare.id)}
+        <div class="groom-dare">
+          <span>{m.groom_dare_points({ points: dare.points })}</span>
+          <strong>{dare.text}</strong>
+        </div>
+      {/each}
+    </aside>
+  {/if}
+
   <!-- Recap Card Overlay (GAME-05) — shown on chapter unlock, auto-dismisses after 3s -->
   <!-- Rendered outside screen blocks so it overlays all screens via position: fixed -->
   {#if $gameState && recapChapterIndex !== null}
@@ -184,19 +198,6 @@
       </div>
     </div>
   {/if}
-
-  <!-- Announcement overlay (GRPX-06, D-07/D-08/D-09) — appears on all clients on EFFECT_ACTIVATED -->
-  <!-- z-index: 100 — above all overlays per UI-SPEC; pointer-events: none — auto-dismisses, no user interaction -->
-  <div
-    class="announcement-overlay"
-    class:visible={showAnnouncement}
-    style="background: {isSabotage ? 'rgba(239, 68, 68, 0.85)' : 'rgba(245, 158, 11, 0.85)'};"
-    role="status"
-    aria-live="assertive"
-  >
-    <p class="announce-player">{activatingPlayerName}</p>
-    <p class="announce-powerup">{isSabotage ? '⚡' : '✨'} {announcementData?.powerUpName ?? ''}</p>
-  </div>
 </main>
 
 <style>
@@ -207,6 +208,104 @@
     background: #f59e0b;
     animation: pulse 1200ms ease-in-out infinite;
     opacity: 0.3;
+  }
+
+  .groom-score-hud {
+    position: fixed;
+    top: 12px;
+    left: 12px;
+    right: 12px;
+    z-index: 40;
+    padding: 10px 12px;
+    border: 1px solid rgba(245, 158, 11, 0.55);
+    border-radius: 8px;
+    background: rgba(36, 36, 38, 0.92);
+    backdrop-filter: blur(10px);
+    pointer-events: none;
+  }
+
+  .hud-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .hud-row span,
+  .groom-dares-title {
+    color: #9ca3af;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin: 0;
+  }
+
+  .hud-row strong {
+    color: #f59e0b;
+    font-size: 18px;
+  }
+
+  .hud-track {
+    height: 8px;
+    overflow: hidden;
+    border-radius: 9999px;
+    background: #0f0f0f;
+    margin: 8px 0 6px;
+  }
+
+  .hud-fill {
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #f59e0b, #22c55e);
+  }
+
+  .groom-score-hud p {
+    color: #f9fafb;
+    font-size: 12px;
+    line-height: 1.3;
+    margin: 0;
+  }
+
+  .groom-dares-panel {
+    position: fixed;
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    z-index: 40;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px 12px;
+    border: 1px solid rgba(239, 68, 68, 0.55);
+    border-radius: 8px;
+    background: rgba(36, 36, 38, 0.92);
+  }
+
+  .groom-dare {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .groom-dare span {
+    flex-shrink: 0;
+    color: #f59e0b;
+    border: 1px solid #f59e0b;
+    border-radius: 9999px;
+    padding: 2px 8px;
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .groom-dare strong {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #f9fafb;
+    font-size: 14px;
   }
   @keyframes pulse {
     0%, 100% { opacity: 0.3; }
@@ -268,43 +367,6 @@
   .recap-progress {
     font-size: 14px; /* --font-size-label */
     color: #9ca3af; /* --color-text-secondary */
-    margin: 0;
-  }
-
-  /* Announcement overlay (GRPX-06, D-07/D-08/D-09) — mirrors recap-overlay pattern */
-  .announcement-overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 100; /* above all overlays per UI-SPEC */
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 16px;
-    opacity: 0;
-    pointer-events: none; /* always none — auto-dismisses, no user interaction */
-    transition: opacity 200ms ease;
-    padding: 64px 32px;
-    text-align: center;
-  }
-  .announcement-overlay.visible {
-    opacity: 1;
-    pointer-events: none; /* always none — auto-dismisses, no user interaction */
-  }
-  .announce-player {
-    font-size: 64px; /* component-scoped override — theatrical impact, NOT a system token */
-    font-weight: 700;
-    color: #f9fafb;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    line-height: 1.1;
-    margin: 0;
-  }
-  .announce-powerup {
-    font-size: 40px; /* --font-size-display token */
-    font-weight: 700;
-    color: #f9fafb;
-    line-height: 1.1;
     margin: 0;
   }
 </style>
