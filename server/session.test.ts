@@ -33,6 +33,31 @@ describe("session module", () => {
     expect(session!.phase).toBe("lobby");
   });
 
+  it("createSession can initialize from a saved game config", () => {
+    const code = createSession({
+      version: 1,
+      chapters: [{
+        name: "Chapter 1",
+        minigameType: "trivia",
+        triviaPool: [{
+          question: "Question?",
+          correctAnswer: "Yes",
+          wrongOptions: ["No", "Maybe", "Later"],
+        }],
+        scavengerClue: "Find it",
+        reward: "Reward",
+      }],
+      milestones: [{ points: 100, reward: "Reward" }],
+    });
+    const session = getSession(code);
+    expect(session!.chapters).toHaveLength(1);
+    expect(session!.chapters[0].servedQuestionIndex).toBeNull();
+    expect(session!.chapters[0].minigameDone).toBe(false);
+    expect(session!.milestones).toHaveLength(1);
+    expect(session!.milestones[0].unlocked).toBe(false);
+    expect(session!.players).toEqual([]);
+  });
+
   it("getSession returns null for an unknown code", () => {
     createSession(); // creates a session
     const result = getSession("ZZZZZZ");

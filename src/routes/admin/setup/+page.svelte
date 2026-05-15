@@ -1,19 +1,34 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { page } from "$app/stores";
-  import { gameState, sendMessage } from "$lib/socket.ts";
-  import type { Chapter, TriviaQuestion, PowerUp } from "$lib/types.ts";
-  import { serializeConfig, validateConfig } from "$lib/configSerializer";
+  import type { Chapter, TriviaQuestion, Milestone } from "$lib/types.ts";
+  import { serializeConfig, validateConfig, type GameConfig } from "$lib/configSerializer";
   import * as m from '$lib/paraglide/messages.js';
+
+  type SavedGameConfigSummary = {
+    id: string;
+    name: string;
+    createdAt: string;
+    updatedAt: string;
+    chapterCount: number;
+  };
+
+  type SavedGameConfig = Omit<SavedGameConfigSummary, "chapterCount"> & {
+    config: GameConfig;
+  };
 
   // Auth state (identical pattern to /admin)
   let authorized = $state<boolean | null>(null); // null = loading
   let token = $state<string>(""); // stored for link preservation (Pitfall 3)
+  let configs = $state<SavedGameConfigSummary[]>([]);
+  let currentConfigId = $state<string | null>(null);
+  let configName = $state("Wedding game");
+  let pageError = $state("");
+  let loadingConfig = $state(false);
 
   // Form state
   let chapters = $state<Chapter[]>([]);
-  let powerUpCatalog = $state<PowerUp[]>([]);
-  let startingTokens = $state<number>(0);
+  let milestones = $state<Milestone[]>([]);
   let saveFlash = $state(false);
   let saveFlashTimer: ReturnType<typeof setTimeout> | null = null;
   let exportFlash = $state(false);
@@ -25,23 +40,10 @@
 
   let importFileInput = $state<HTMLInputElement | null>(null);
 
-  // Restore guard — only restore once from server state
-  let restoredFromState = $state(false);
-
-  // Restore form from $gameState on first sync (ADMN-05)
-  $effect(() => {
-    const gs = $gameState;
-    if (!restoredFromState && gs && gs.chapters.length > 0) {
-      chapters = structuredClone(gs.chapters);
-      powerUpCatalog = structuredClone(gs.powerUpCatalog);
-      startingTokens = gs.startingTokens ?? 0;
-      restoredFromState = true;
-    }
-  });
-
   // Validation (computed)
   let isValid = $derived(
     chapters.length >= 1 &&
+    milestones.length >= 1 &&
     chapters.every(
       (c) =>
         c.name.trim().length > 0 &&
@@ -57,7 +59,8 @@
             ))) &&
         c.scavengerClue.trim().length > 0 &&
         c.reward.trim().length > 0
-    )
+    ) &&
+    milestones.every((milestone) => milestone.points > 0 && milestone.reward.trim().length > 0)
   );
 
   // Auth on mount
@@ -71,27 +74,106 @@
     try {
       const res = await fetch(`/api/admin/session?token=${encodeURIComponent(t)}`);
       authorized = res.ok;
+      if (res.ok) {
+        await loadConfigList();
+        const requestedConfigId = $page.url.searchParams.get("config");
+        if (requestedConfigId) {
+          await loadConfig(requestedConfigId);
+        } else if (configs.length > 0) {
+          await loadConfig(configs[0].id);
+        }
+      }
     } catch {
       authorized = false;
     }
   });
 
+  function blankChapter(): Chapter {
+    return {
+      name: "",
+      minigameType: "trivia",
+      triviaPool: [{ question: "", correctAnswer: "", wrongOptions: ["", "", ""] }],
+      scavengerClue: "",
+      scavengerHint: "",
+      reward: "",
+      servedQuestionIndex: null,
+      minigameDone: false,
+      scavengerDone: false,
+    };
+  }
+
+  function blankMilestone(points = 100): Milestone {
+    return {
+      id: crypto.randomUUID(),
+      points,
+      reward: "",
+      unlocked: false,
+    };
+  }
+
+  function apiUrl(path: string) {
+    return `${path}${path.includes("?") ? "&" : "?"}token=${encodeURIComponent(token)}`;
+  }
+
+  async function loadConfigList() {
+    const res = await fetch(apiUrl("/api/admin/configs"));
+    if (!res.ok) throw new Error("Failed to load configs");
+    const data = await res.json() as { configs: SavedGameConfigSummary[] };
+    configs = data.configs;
+  }
+
+  function applyConfig(record: SavedGameConfig) {
+    currentConfigId = record.id;
+    configName = record.name;
+    chapters = record.config.chapters.map((chapter) => ({
+      ...chapter,
+      servedQuestionIndex: null,
+      minigameDone: false,
+      scavengerDone: false,
+    }));
+    milestones = (record.config.milestones ?? []).map((milestone) => ({
+      id: milestone.id ?? crypto.randomUUID(),
+      points: milestone.points,
+      reward: milestone.reward,
+      unlocked: false,
+    }));
+    if (milestones.length === 0) milestones = [blankMilestone(100), blankMilestone(200), blankMilestone(300)];
+    pageError = "";
+  }
+
+  async function loadConfig(id: string) {
+    loadingConfig = true;
+    pageError = "";
+    try {
+      const res = await fetch(apiUrl(`/api/admin/configs/${id}`));
+      if (!res.ok) throw new Error("Config not found");
+      applyConfig(await res.json() as SavedGameConfig);
+    } catch (error) {
+      pageError = error instanceof Error ? error.message : "Failed to load config";
+    } finally {
+      loadingConfig = false;
+    }
+  }
+
+  function newConfig() {
+    currentConfigId = null;
+    configName = "Wedding game";
+    chapters = [blankChapter()];
+    milestones = [blankMilestone(100), blankMilestone(200), blankMilestone(300)];
+    pageError = "";
+  }
+
+  function duplicateConfig() {
+    currentConfigId = null;
+    configName = `${configName} copy`;
+    pageError = "";
+  }
+
   // --- Chapter management (Svelte 5 — always reassign root, never mutate in place) ---
 
   function addChapter() {
     if (chapters.length >= 5) return;
-    chapters = [
-      ...chapters,
-      {
-        name: "",
-        minigameType: "trivia",
-        triviaPool: [{ question: "", correctAnswer: "", wrongOptions: ["", "", ""] }],
-        scavengerClue: "",
-        scavengerHint: "",
-        reward: "",
-        servedQuestionIndex: null,
-      },
-    ];
+    chapters = [...chapters, blankChapter()];
   }
 
   function removeChapter(i: number) {
@@ -156,33 +238,83 @@
     );
   }
 
-  // --- Power-up catalog management ---
+  // --- Milestone management ---
 
-  function addPowerUp() {
-    powerUpCatalog = [
-      ...powerUpCatalog,
-      { name: "", description: "", tokenCost: 1, effectType: "timer_add" },
-    ];
+  function addMilestone() {
+    const nextPoints = Math.max(0, ...milestones.map((milestone) => milestone.points)) + 100;
+    milestones = [...milestones, blankMilestone(nextPoints)];
   }
 
-  function removePowerUp(i: number) {
-    powerUpCatalog = powerUpCatalog.filter((_, idx) => idx !== i);
+  function removeMilestone(i: number) {
+    milestones = milestones.filter((_, idx) => idx !== i);
   }
 
-  function updatePowerUp<K extends keyof PowerUp>(i: number, field: K, value: PowerUp[K]) {
-    powerUpCatalog = powerUpCatalog.map((p, idx) => (idx === i ? { ...p, [field]: value } : p));
+  function updateMilestone<K extends keyof Milestone>(i: number, field: K, value: Milestone[K]) {
+    milestones = milestones.map((milestone, idx) => (idx === i ? { ...milestone, [field]: value } : milestone));
   }
 
   // --- Save ---
 
-  function saveSetup() {
-    if (!isValid) return;
-    sendMessage({ type: "SAVE_SETUP", chapters, powerUpCatalog, startingTokens });
+  async function saveSetup(): Promise<string | null> {
+    if (!isValid) return null;
+    pageError = "";
+    const payload = {
+      name: configName,
+      config: serializeConfig(chapters, milestones),
+    };
+    const path = currentConfigId ? `/api/admin/configs/${currentConfigId}` : "/api/admin/configs";
+    const res = await fetch(apiUrl(path), {
+      method: currentConfigId ? "PUT" : "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({ error: "Failed to save config" })) as { error?: string };
+      pageError = body.error ?? "Failed to save config";
+      return null;
+    }
+    const record = await res.json() as SavedGameConfig;
+    applyConfig(record);
+    await loadConfigList();
     saveFlash = true;
     if (saveFlashTimer) clearTimeout(saveFlashTimer);
     saveFlashTimer = setTimeout(() => {
       saveFlash = false;
     }, 1500);
+    return record.id;
+  }
+
+  async function deleteConfig() {
+    if (!currentConfigId) return;
+    if (!confirm(`Delete "${configName}"? This cannot be undone.`)) return;
+    const res = await fetch(apiUrl(`/api/admin/configs/${currentConfigId}`), { method: "DELETE" });
+    if (!res.ok) {
+      pageError = "Failed to delete config";
+      return;
+    }
+    await loadConfigList();
+    if (configs.length > 0) {
+      await loadConfig(configs[0].id);
+    } else {
+      newConfig();
+    }
+  }
+
+  async function launchConfig() {
+    if (!confirm("Launch a fresh session from this config? The current live session will be replaced.")) return;
+    const id = currentConfigId ?? await saveSetup();
+    if (!id) return;
+    const res = await fetch(apiUrl("/api/admin/sessions/launch"), {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ configId: id }),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({ error: "Failed to launch session" })) as { error?: string };
+      pageError = body.error ?? "Failed to launch session";
+      return;
+    }
+    window.location.href = `/admin?token=${encodeURIComponent(token)}`;
   }
 
   // --- Export (per D-01 through D-06 from 09-CONTEXT.md) ---
@@ -190,7 +322,7 @@
   function exportSetup() {
     if (!isValid) return;
 
-    const config = serializeConfig(chapters, powerUpCatalog, startingTokens);
+    const config = serializeConfig(chapters, milestones);
     const json = JSON.stringify(config, null, 2);
     const blob = new Blob([json], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -264,12 +396,22 @@
     // and structuredClone on a proxy produces unexpected results.
     const { config } = $state.snapshot(importConfirmPending);
 
-    chapters = config.chapters as typeof chapters;
-    powerUpCatalog = config.powerUpCatalog;
-    startingTokens = config.startingTokens;
+    chapters = config.chapters.map((chapter) => ({
+      ...chapter,
+      servedQuestionIndex: null,
+      minigameDone: false,
+      scavengerDone: false,
+    }));
+    milestones = (config.milestones ?? []).map((milestone) => ({
+      id: milestone.id ?? crypto.randomUUID(),
+      points: milestone.points,
+      reward: milestone.reward,
+      unlocked: false,
+    }));
+    if (milestones.length === 0) milestones = [blankMilestone(100), blankMilestone(200), blankMilestone(300)];
 
-    // Set restore guard so next STATE_SYNC does not overwrite (D-07)
-    restoredFromState = true;
+    currentConfigId = null;
+    configName = "Imported game";
 
     importConfirmPending = null;
     importError = "";
@@ -307,6 +449,73 @@
       <h1 class="text-[24px] font-bold text-text-primary">{m.admin_setup_page_title()}</h1>
       <a href="/admin?token={token}" class="text-[14px] text-text-secondary">{m.admin_setup_back_link()}</a>
     </header>
+
+    <section class="bg-surface rounded-xl border border-border p-4 mb-6">
+      <label class="block text-[14px] text-text-secondary mb-2" for="config-name">Game config</label>
+      <input
+        id="config-name"
+        type="text"
+        class="w-full bg-bg border border-border rounded-lg px-4 py-2 text-[20px] font-bold text-text-primary mb-3"
+        value={configName}
+        oninput={(e) => { configName = (e.target as HTMLInputElement).value; }}
+      />
+
+      <div class="flex gap-2 mb-3">
+        <select
+          class="flex-1 bg-bg border border-border rounded-lg px-3 py-2 text-base text-text-primary min-h-[44px]"
+          value={currentConfigId ?? ""}
+          disabled={loadingConfig || configs.length === 0}
+          onchange={(e) => {
+            const id = (e.target as HTMLSelectElement).value;
+            if (id) void loadConfig(id);
+          }}
+        >
+          {#if configs.length === 0}
+            <option value="">No saved configs</option>
+          {:else}
+            {#each configs as config}
+              <option value={config.id}>{config.name} ({config.chapterCount})</option>
+            {/each}
+          {/if}
+        </select>
+        <button
+          onclick={newConfig}
+          class="min-h-[44px] px-4 rounded-lg border border-border text-text-secondary"
+        >
+          New
+        </button>
+      </div>
+
+      <div class="grid grid-cols-3 gap-2">
+        <button
+          onclick={duplicateConfig}
+          disabled={chapters.length === 0}
+          class="min-h-[44px] rounded-lg border border-border text-text-secondary disabled:opacity-50"
+        >
+          Duplicate
+        </button>
+        <button
+          onclick={deleteConfig}
+          disabled={!currentConfigId}
+          class="min-h-[44px] rounded-lg border border-border text-destructive disabled:opacity-50"
+        >
+          Delete
+        </button>
+        <button
+          onclick={launchConfig}
+          disabled={!isValid}
+          class="min-h-[44px] rounded-lg bg-accent-admin text-text-primary font-bold disabled:opacity-50"
+        >
+          Launch
+        </button>
+      </div>
+    </section>
+
+    {#if pageError}
+      <div class="bg-bg border border-red-500 rounded-xl px-4 py-3 text-[14px] text-red-400 mb-6">
+        {pageError}
+      </div>
+    {/if}
 
     <!-- Chapters empty state -->
     {#if chapters.length === 0}
@@ -427,8 +636,9 @@
 
         <!-- Scavenger clue -->
         <div class="mb-4">
-          <label class="block text-[14px] text-text-secondary mb-1">{m.admin_setup_scavenger_clue_label()}</label>
+          <label for="scavenger-clue-{i}" class="block text-[14px] text-text-secondary mb-1">{m.admin_setup_scavenger_clue_label()}</label>
           <textarea
+            id="scavenger-clue-{i}"
             rows="3"
             placeholder={m.admin_setup_scavenger_clue_placeholder()}
             class="w-full bg-bg border border-border rounded-lg px-4 py-2 text-base text-text-primary resize-none"
@@ -439,8 +649,9 @@
 
         <!-- Scavenger hint (optional) -->
         <div class="mb-4">
-          <label class="block text-[14px] text-text-secondary mb-1">{m.admin_setup_hint_label()}</label>
+          <label for="scavenger-hint-{i}" class="block text-[14px] text-text-secondary mb-1">{m.admin_setup_hint_label()}</label>
           <input
+            id="scavenger-hint-{i}"
             type="text"
             placeholder={m.admin_setup_hint_placeholder()}
             class="w-full bg-bg border border-border rounded-lg px-4 py-2 text-base text-text-primary"
@@ -451,8 +662,9 @@
 
         <!-- Reward -->
         <div>
-          <label class="block text-[14px] text-text-secondary mb-1">{m.admin_setup_reward_label()}</label>
+          <label for="chapter-reward-{i}" class="block text-[14px] text-text-secondary mb-1">{m.admin_setup_reward_label()}</label>
           <textarea
+            id="chapter-reward-{i}"
             rows="2"
             placeholder={m.admin_setup_reward_placeholder()}
             class="w-full bg-bg border border-border rounded-lg px-4 py-2 text-base text-text-primary resize-none"
@@ -474,91 +686,50 @@
       {m.admin_setup_add_chapter_btn()}
     </button>
 
-    <!-- Power-ups & Sabotages section -->
+    <!-- Milestones section -->
     <section class="mb-8">
-      <h2 class="text-[24px] font-bold text-text-primary mb-4">{m.admin_setup_powerups_section_title()}</h2>
+      <h2 class="text-[24px] font-bold text-text-primary mb-2">{m.admin_setup_milestones_section_title()}</h2>
+      <p class="text-[14px] text-text-secondary mb-4">{m.admin_setup_milestones_section_body()}</p>
 
-      <div class="flex items-center gap-3 mb-4">
-        <label
-          for="starting-tokens"
-          class="text-[14px] text-text-secondary"
-        >{m.admin_setup_starting_tokens_label()}</label>
-        <input
-          id="starting-tokens"
-          type="number"
-          min="0"
-          placeholder={m.admin_setup_starting_tokens_placeholder()}
-          class="w-20 bg-bg border border-border rounded-lg px-2 py-2 text-base text-text-primary text-center min-h-[44px]"
-          value={startingTokens}
-          oninput={(e) => { startingTokens = Number((e.target as HTMLInputElement).value) || 0; }}
-        />
-      </div>
-
-      {#each powerUpCatalog as powerUp, i}
+      {#each milestones as milestone, i}
         <div class="bg-surface border border-border rounded-xl p-4 mb-3 flex flex-col gap-2">
           <div class="flex items-center justify-between">
-            <span class="text-[14px] text-text-secondary">{m.admin_setup_entry_label({ number: i + 1 })}</span>
+            <span class="text-[14px] text-text-secondary">{m.admin_setup_milestone_label({ number: i + 1 })}</span>
             <button
-              onclick={() => removePowerUp(i)}
+              onclick={() => removeMilestone(i)}
               class="text-[14px] text-destructive min-h-[44px] px-2"
             >
-              {m.admin_setup_remove_powerup_btn()}
+              {m.admin_setup_remove_milestone_btn()}
             </button>
           </div>
 
-          <!-- Name -->
+          <label class="text-[14px] text-text-secondary" for="milestone-points-{milestone.id}">{m.admin_setup_milestone_points_label()}</label>
           <input
-            type="text"
-            placeholder={m.admin_setup_powerup_name_placeholder()}
+            id="milestone-points-{milestone.id}"
+            type="number"
+            min="1"
             class="w-full bg-bg border border-border rounded-lg px-3 py-2 text-base text-text-primary"
-            value={powerUp.name}
-            oninput={(e) => updatePowerUp(i, "name", (e.target as HTMLInputElement).value)}
+            value={milestone.points}
+            oninput={(e) => updateMilestone(i, "points", Number((e.target as HTMLInputElement).value) || 0)}
           />
 
-          <!-- Description -->
-          <input
-            type="text"
-            placeholder={m.admin_setup_powerup_desc_placeholder()}
-            class="w-full bg-bg border border-border rounded-lg px-3 py-2 text-base text-text-primary"
-            value={powerUp.description}
-            oninput={(e) => updatePowerUp(i, "description", (e.target as HTMLInputElement).value)}
-          />
-
-          <div class="flex items-center gap-3">
-            <!-- Token cost -->
-            <div class="flex items-center gap-2">
-              <label class="text-[14px] text-text-secondary">{m.admin_setup_cost_label()}</label>
-              <input
-                type="number"
-                min="1"
-                class="w-16 bg-bg border border-border rounded-lg px-2 py-2 text-base text-text-primary text-center"
-                value={powerUp.tokenCost}
-                oninput={(e) => updatePowerUp(i, "tokenCost", Number((e.target as HTMLInputElement).value))}
-              />
-            </div>
-
-            <!-- Effect type -->
-            <div class="flex items-center gap-2 flex-1">
-              <label class="text-[14px] text-text-secondary">{m.admin_setup_effect_label()}</label>
-              <select
-                class="flex-1 bg-bg border border-border rounded-lg px-3 py-2 text-base text-text-primary min-h-[44px]"
-                value={powerUp.effectType}
-                onchange={(e) => updatePowerUp(i, "effectType", (e.target as HTMLSelectElement).value)}
-              >
-                <option value="timer_add">{m.admin_setup_effect_timer_add()}</option>
-                <option value="scramble_options">{m.admin_setup_effect_scramble()}</option>
-                <option value="distraction">{m.admin_setup_effect_distraction()}</option>
-              </select>
-            </div>
-          </div>
+          <label class="text-[14px] text-text-secondary" for="milestone-reward-{milestone.id}">{m.admin_setup_milestone_reward_label()}</label>
+          <textarea
+            id="milestone-reward-{milestone.id}"
+            rows="2"
+            placeholder={m.admin_setup_milestone_reward_placeholder()}
+            class="w-full bg-bg border border-border rounded-lg px-3 py-2 text-base text-text-primary resize-none"
+            value={milestone.reward}
+            oninput={(e) => updateMilestone(i, "reward", (e.target as HTMLTextAreaElement).value)}
+          ></textarea>
         </div>
       {/each}
 
       <button
-        onclick={addPowerUp}
+        onclick={addMilestone}
         class="w-full border border-accent-admin text-accent-admin min-h-[44px] rounded-xl text-[14px]"
       >
-        {m.admin_setup_add_powerup_btn()}
+        {m.admin_setup_add_milestone_btn()}
       </button>
     </section>
 
@@ -622,6 +793,13 @@
         style={saveFlash ? "background: #22c55e;" : ""}
       >
         {saveFlash ? m.admin_setup_saved_btn() : m.admin_setup_save_btn()}
+      </button>
+      <button
+        onclick={launchConfig}
+        disabled={!isValid}
+        class="flex-1 min-h-[48px] bg-text-primary text-bg font-bold rounded-xl disabled:opacity-50 disabled:pointer-events-none"
+      >
+        Launch
       </button>
     {/if}
   </div>

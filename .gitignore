@@ -5,3 +5,6 @@ build/
 *.local
 .claude/
 ISSUES.md
+FEEDBACK.md
+resume.md
+.obsidian/

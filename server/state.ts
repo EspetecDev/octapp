@@ -25,11 +25,24 @@ export type Chapter = {
   scavengerDone: boolean;     // Phase 3: tracks scavenger completion per chapter
 };
 
-export type PowerUp = {
-  name: string;
-  description: string;
-  tokenCost: number;
-  effectType: "timer_add" | "timer_reduce" | "scramble_options" | "distraction" | string;
+export type PointTier = 10 | 25 | 50;
+
+export type Milestone = {
+  id: string;
+  points: number;
+  reward: string;
+  unlocked: boolean;
+};
+
+export type DareProposal = {
+  id: string;
+  text: string;
+  points: PointTier;
+  proposedBy: string;
+  votes: string[];
+  status: "voting" | "active" | "completed" | "failed" | "deleted";
+  createdAt: number;
+  resolvedAt?: number;
 };
 
 export type GameState = {
@@ -41,30 +54,53 @@ export type GameState = {
   chapters: Chapter[];
   activeChapterIndex: number | null;
   scores: Record<string, number>;
-  powerUpCatalog: PowerUp[];
-  // Phase 4 additions:
-  startingTokens: number;
-  tokenBalances: Record<string, number>;
-  recentActions: Array<{ playerName: string; powerUpName: string; timestamp: number }>;
+  groomScore: number;
+  milestones: Milestone[];
+  dareProposals: DareProposal[];
+};
+
+export type ConfigChapter = Omit<Chapter, "servedQuestionIndex" | "minigameDone" | "scavengerDone">;
+export type ConfigMilestone = Omit<Milestone, "id" | "unlocked"> & { id?: string };
+
+export type GameConfig = {
+  version: 1;
+  chapters: ConfigChapter[];
+  milestones: ConfigMilestone[];
 };
 
 // In-memory store: one active session at a time (Phase 1 scope)
 let activeState: GameState | null = null;
 
-export function initState(sessionCode: string): GameState {
+function chaptersFromConfig(config?: GameConfig): Chapter[] {
+  return (config?.chapters ?? []).map((chapter) => ({
+    ...chapter,
+    servedQuestionIndex: null,
+    minigameDone: false,
+    scavengerDone: false,
+  }));
+}
+
+function milestonesFromConfig(config?: GameConfig): Milestone[] {
+  return (config?.milestones ?? []).map((milestone) => ({
+    id: milestone.id ?? crypto.randomUUID(),
+    points: milestone.points,
+    reward: milestone.reward,
+    unlocked: false,
+  }));
+}
+
+export function initState(sessionCode: string, config?: GameConfig): GameState {
   activeState = {
     sessionCode,
     phase: "lobby",
     players: [],
     groomPlayerId: null,
-    // Phase 2 safe defaults — all empty; populated via SAVE_SETUP and UNLOCK_CHAPTER
-    chapters: [],
+    chapters: chaptersFromConfig(config),
     activeChapterIndex: null,
     scores: {},
-    powerUpCatalog: [],
-    startingTokens: 0,
-    tokenBalances: {},
-    recentActions: [],
+    groomScore: 0,
+    milestones: milestonesFromConfig(config),
+    dareProposals: [],
   };
   return activeState;
 }

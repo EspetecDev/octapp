@@ -1,14 +1,14 @@
-import type { Chapter, PowerUp } from "$lib/types";
+import type { Chapter, Milestone } from "$lib/types";
 
 // ConfigChapter — Chapter without the three runtime-only fields
 export type ConfigChapter = Omit<Chapter, "servedQuestionIndex" | "minigameDone" | "scavengerDone">;
+export type ConfigMilestone = Omit<Milestone, "id" | "unlocked"> & { id?: string };
 
 // GameConfig — the serialized shape written to / read from JSON
 export type GameConfig = {
   version: 1;
   chapters: ConfigChapter[];
-  powerUpCatalog: PowerUp[];
-  startingTokens: number;
+  milestones: ConfigMilestone[];
 };
 
 // Discriminated union returned by validateConfig
@@ -22,15 +22,22 @@ export type ValidateConfigResult =
  */
 export function serializeConfig(
   chapters: Chapter[],
-  powerUpCatalog: PowerUp[],
-  startingTokens: number
+  milestones: Milestone[]
 ): GameConfig {
   const strippedChapters: ConfigChapter[] = chapters.map((ch) => {
     const { servedQuestionIndex: _sri, minigameDone: _md, scavengerDone: _sd, ...rest } = ch;
     return rest;
   });
 
-  return { version: 1, chapters: strippedChapters, powerUpCatalog, startingTokens };
+  const strippedMilestones: ConfigMilestone[] = milestones
+    .map((milestone) => ({
+      id: milestone.id,
+      points: milestone.points,
+      reward: milestone.reward,
+    }))
+    .sort((a, b) => a.points - b.points);
+
+  return { version: 1, chapters: strippedChapters, milestones: strippedMilestones };
 }
 
 /**
@@ -52,12 +59,8 @@ export function validateConfig(data: unknown): ValidateConfigResult {
     return { ok: false, error: "Missing or invalid 'chapters' field — expected an array" };
   }
 
-  if (!Array.isArray(d.powerUpCatalog)) {
-    return { ok: false, error: "Missing or invalid 'powerUpCatalog' field — expected an array" };
-  }
-
-  if (typeof d.startingTokens !== "number") {
-    return { ok: false, error: "Missing or invalid 'startingTokens' field — expected a number" };
+  if (d.milestones !== undefined && !Array.isArray(d.milestones)) {
+    return { ok: false, error: "Invalid 'milestones' field — expected an array" };
   }
 
   const chapters = d.chapters as unknown[];
@@ -73,5 +76,21 @@ export function validateConfig(data: unknown): ValidateConfigResult {
     }
   }
 
-  return { ok: true, config: data as GameConfig };
+  const milestones = (d.milestones ?? []) as unknown[];
+  for (let i = 0; i < milestones.length; i++) {
+    const milestone = milestones[i] as Record<string, unknown>;
+    if (typeof milestone.points !== "number" || milestone.points <= 0) {
+      return { ok: false, error: `Milestone ${i + 1}: points must be a positive number` };
+    }
+    if (typeof milestone.reward !== "string" || milestone.reward.trim().length === 0) {
+      return { ok: false, error: `Milestone ${i + 1}: reward is required` };
+    }
+  }
+
+  const config = {
+    ...(data as GameConfig),
+    milestones: (d.milestones ?? []) as ConfigMilestone[],
+  };
+
+  return { ok: true, config };
 }

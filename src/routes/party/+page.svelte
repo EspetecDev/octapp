@@ -1,744 +1,417 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { beforeNavigate } from "$app/navigation";
-  import { gameState, lastEffect, getStoredPlayerId, sendMessage } from "$lib/socket.ts";
-  import type { Player } from "$lib/types.ts";
-  import type { EffectActivatedPayload } from "$lib/socket.ts";
-  import * as m from '$lib/paraglide/messages.js';
+  import { gameState, getStoredPlayerId, sendMessage } from "$lib/socket.ts";
+  import type { DareProposal, Milestone, Player, PointTier } from "$lib/types.ts";
+  import * as m from "$lib/paraglide/messages.js";
 
-  // FIX-01: Block all navigation away from the game during an active session (D-01, D-02, D-03)
-  // beforeNavigate cancels SvelteKit client-side navigation
   beforeNavigate(({ cancel }) => {
     cancel();
   });
 
+  const POINT_TIERS: PointTier[] = [10, 25, 50];
+
   let myPlayerId = $state<string | null>(null);
+  let dareText = $state("");
+  let selectedPoints = $state<PointTier>(25);
+  let submitFlash = $state(false);
 
   onMount(() => {
-    // Push dummy history entry so Android back button hits this entry first (FIX-01, D-02)
     history.pushState(null, "", window.location.href);
     myPlayerId = getStoredPlayerId();
   });
 
-  let myPlayer = $derived<Player | null>(
-    myPlayerId ? ($gameState?.players.find((p: Player) => p.id === myPlayerId) ?? null) : null
-  );
-
-  let allConnectedPlayers = $derived(
-    ($gameState?.players ?? []).filter((p: Player) => p.connected)
-  );
-
-  let groupMembers = $derived(
-    allConnectedPlayers.filter((p: Player) => p.role === "group")
-  );
-
-  // Recap card state (GAME-05)
-  let showRecap = $state(false);
-  let recapChapterIndex = $state<number | null>(null);
-  let initialSyncDone = $state(false);
-  let dismissTimer: ReturnType<typeof setTimeout> | null = null;
-
-  $effect(() => {
-    const idx = $gameState?.activeChapterIndex ?? null;
-    if (!initialSyncDone) {
-      // First STATE_SYNC after connecting — set baseline without showing recap (Pitfall 4)
-      recapChapterIndex = idx;
-      initialSyncDone = true;
-      return;
-    }
-    if (idx !== null && idx !== recapChapterIndex) {
-      recapChapterIndex = idx;
-      showRecap = true;
-      if (dismissTimer) clearTimeout(dismissTimer);
-      dismissTimer = setTimeout(() => { showRecap = false; }, 3000);
-    }
-  });
-
-  // Reward reveal state (RWRD-01, D-24)
-  let showRewardReveal = $state(false);
-  let revealedChapterIndex = $state<number | null>(null);
-
-  $effect(() => {
-    const idx = $gameState?.activeChapterIndex ?? null;
-    const chapter = idx !== null ? ($gameState?.chapters[idx] ?? null) : null;
-
-    if (!initialSyncDone) {
-      // Baseline on first STATE_SYNC (Pitfall 4 guard)
-      revealedChapterIndex = idx;
-      // If player joins mid-reward, show overlay immediately
-      if (chapter?.scavengerDone && idx !== null) {
-        showRewardReveal = true;
-      }
-      return;
-    }
-
-    // New reward: scavengerDone flipped true on current chapter
-    if (chapter?.scavengerDone && idx !== revealedChapterIndex) {
-      revealedChapterIndex = idx;
-      showRewardReveal = true;
-    }
-
-    // Dismiss when chapter advances (activeChapterIndex changes beyond revealedChapterIndex)
-    if (idx !== null && revealedChapterIndex !== null && idx !== revealedChapterIndex && showRewardReveal) {
-      showRewardReveal = false;
-    }
-  });
-
-  // Economy state
-  const EARN_CAP = 5;
-  let earnedThisChallenge = $state(0);
-  let earnFlash = $state(false);
-  let spendingIndex = $state<number | null>(null); // index of item in optimistic loading state
-  let spendRejectToast = $state(false);
-  let spendToastTimer: ReturnType<typeof setTimeout> | null = null;
-
-  // Announcement overlay state
-  let showAnnouncement = $state(false);
-  let announcementData = $state<EffectActivatedPayload | null>(null);
-  let announceDismissTimer: ReturnType<typeof setTimeout> | null = null;
-
-  // Derived values
+  let players = $derived($gameState?.players ?? []);
+  let groupPlayers = $derived(players.filter((player: Player) => player.role === "group"));
+  let connectedGroupPlayers = $derived(groupPlayers.filter((player) => player.connected));
   let activeChapter = $derived(
     $gameState?.activeChapterIndex != null
       ? ($gameState.chapters[$gameState.activeChapterIndex] ?? null)
       : null
   );
-
-  // Active challenge: phase is "active" AND minigame not yet done
-  let isChallengeLive = $derived(
-    $gameState?.phase === "active" &&
-    $gameState?.activeChapterIndex !== null &&
-    activeChapter !== null &&
-    !activeChapter.minigameDone
-  );
-
-  let myBalance = $derived($gameState?.tokenBalances?.[myPlayerId ?? ""] ?? 0);
-
-  // Context-filtered shop (D-16/D-17/D-18)
-  let filteredShop = $derived(
-    ($gameState?.powerUpCatalog ?? [])
-      .filter((p) => {
-        if (p.effectType === "scramble_options" && activeChapter?.minigameType !== "trivia") return false;
-        return true;
-      })
-      .sort((a, b) => {
-        // timer_add first (helpful), then others (sabotages)
-        if (a.effectType === "timer_add" && b.effectType !== "timer_add") return -1;
-        if (b.effectType === "timer_add" && a.effectType !== "timer_add") return 1;
-        return 0;
-      })
-  );
-
-  let groupPlayers = $derived(($gameState?.players ?? []).filter((p) => p.role === "group"));
-
-  let recentActions = $derived(($gameState?.recentActions ?? []).slice(0, 10));
-
   let chapterLabel = $derived(
     $gameState?.activeChapterIndex != null && activeChapter
-      ? `CHAPTER ${($gameState.activeChapterIndex ?? 0) + 1} — ${activeChapter.name}`
-      : ""
+      ? m.party_current_chapter({ number: ($gameState.activeChapterIndex ?? 0) + 1, name: activeChapter.name })
+      : m.party_lobby_waiting()
   );
 
-  // Announcement overlay derived
-  let isSabotage = $derived(
-    announcementData?.effectType === "timer_reduce" ||
-    announcementData?.effectType === "scramble_options" ||
-    announcementData?.effectType === "distraction"
+  let milestones = $derived([...(($gameState?.milestones ?? []) as Milestone[])].sort((a, b) => a.points - b.points));
+  let groomScore = $derived($gameState?.groomScore ?? 0);
+  let finalMilestone = $derived(milestones[milestones.length - 1] ?? null);
+  let nextMilestone = $derived(milestones.find((milestone) => !milestone.unlocked) ?? finalMilestone);
+  let progressPercent = $derived(
+    finalMilestone ? Math.min(100, Math.round((groomScore / finalMilestone.points) * 100)) : 0
   );
 
-  let activatingPlayerName = $derived(
-    $gameState?.players.find((p) => p.id === announcementData?.activatedBy)?.name?.toUpperCase() ?? ""
-  );
+  let dares = $derived(($gameState?.dareProposals ?? []) as DareProposal[]);
+  let votingDares = $derived(dares.filter((dare) => dare.status === "voting"));
+  let activeDares = $derived(dares.filter((dare) => dare.status === "active"));
+  let resolvedDares = $derived(dares.filter((dare) => ["completed", "failed", "deleted"].includes(dare.status)).slice(0, 6));
 
-  // Announcement overlay — triggered by EFFECT_ACTIVATED (same pattern as groom page)
-  $effect(() => {
-    const effect = $lastEffect;
-    if (!effect) return;
-    announcementData = effect;
-    showAnnouncement = true;
-    if (announceDismissTimer) clearTimeout(announceDismissTimer);
-    announceDismissTimer = setTimeout(() => { showAnnouncement = false; }, 2000);
-  });
-
-  // Earn counter reset on chapter change (Pitfall 3)
-  // Must be inside initialSyncDone guard to avoid resetting on first STATE_SYNC
-  $effect(() => {
-    const idx = $gameState?.activeChapterIndex;
-    if (!initialSyncDone) return; // initialSyncDone is already declared by recap card logic
-    void idx; // reactive dependency — fires when chapter changes
-    earnedThisChallenge = 0;
-  });
-
-  function handleEarnTap() {
-    if (earnedThisChallenge >= EARN_CAP) return;
-    earnedThisChallenge += 1;
-    sendMessage({ type: "EARN_TOKEN" });
-    if ("vibrate" in navigator) navigator.vibrate(50);
-    // Green flash
-    earnFlash = true;
-    setTimeout(() => { earnFlash = false; }, 200);
+  function playerName(playerId: string) {
+    return players.find((player) => player.id === playerId)?.name ?? m.party_unknown_player();
   }
 
-  function handleSpend(powerUpIndex: number) {
-    if (spendingIndex !== null) return; // already pending
-    const powerUp = filteredShop[powerUpIndex];
-    if (!powerUp || myBalance < powerUp.tokenCost) return;
+  function connectedYesVotes(dare: DareProposal) {
+    const connectedIds = new Set(connectedGroupPlayers.map((player) => player.id));
+    return dare.votes.filter((id) => connectedIds.has(id)).length;
+  }
 
-    // Map filteredShop index back to original powerUpCatalog index
-    const catalogIndex = ($gameState?.powerUpCatalog ?? []).indexOf(powerUp);
-    if (catalogIndex < 0) return;
+  function voteLabel(dare: DareProposal) {
+    const connectedCount = connectedGroupPlayers.length;
+    const needed = Math.floor(connectedCount / 2) + 1;
+    return m.party_dare_votes({ yes: connectedYesVotes(dare), needed, total: connectedCount });
+  }
 
-    const balanceBefore = myBalance;
-    spendingIndex = powerUpIndex;
-    sendMessage({ type: "SPEND_TOKEN", powerUpIndex: catalogIndex });
+  function hasVoted(dare: DareProposal) {
+    return myPlayerId ? dare.votes.includes(myPlayerId) : false;
+  }
 
-    // Optimistic loading state — server will update balance via STATE_SYNC
-    setTimeout(() => {
-      // Show reject toast if balance hasn't changed (server rejected the spend)
-      if (myBalance === balanceBefore) {
-        if (spendToastTimer) clearTimeout(spendToastTimer);
-        spendRejectToast = true;
-        spendToastTimer = setTimeout(() => { spendRejectToast = false; }, 2000);
-      }
-      spendingIndex = null;
-    }, 500);
+  function statusText(status: DareProposal["status"]) {
+    if (status === "completed") return m.party_dare_status_completed();
+    if (status === "failed") return m.party_dare_status_failed();
+    if (status === "deleted") return m.party_dare_status_deleted();
+    if (status === "active") return m.party_dare_status_active();
+    return m.party_dare_status_voting();
+  }
+
+  function proposeDare() {
+    const text = dareText.trim();
+    if (text.length < 3) return;
+    sendMessage({ type: "PROPOSE_DARE", text, points: selectedPoints });
+    dareText = "";
+    submitFlash = true;
+    setTimeout(() => { submitFlash = false; }, 1200);
+  }
+
+  function voteDare(dareId: string) {
+    sendMessage({ type: "VOTE_DARE", dareId });
   }
 </script>
 
-<main
-  class="flex flex-col min-h-[100dvh] bg-bg"
-  style="--color-accent: var(--color-accent-group);"
->
-  {#if isChallengeLive}
-    <!-- GroupEconomyScreen — active challenge layout (D-05, UI-SPEC Zone 1/2/3) -->
-
-    <!-- Zone 1: Groom Progress Bar (fixed height 48px) -->
-    <div class="groom-progress-bar">
-      <span class="text-[14px] text-text-secondary uppercase tracking-widest truncate">{chapterLabel}</span>
-      <span class="text-[24px] font-bold text-text-primary">
-        {activeChapter?.servedQuestionIndex != null ? "⏱" : m.party_waiting_for_groom()}
-      </span>
+<main class="party-screen">
+  <section class="score-panel">
+    <div class="score-row">
+      <span>{m.party_score_label()}</span>
+      <strong>{m.party_score_points({ score: groomScore })}</strong>
     </div>
-
-    <!-- Zone 2: Earn Area (flex-1, centered) -->
-    <div class="earn-zone">
-      <!-- Token balance display (display size, 40px bold) -->
-      <p class="text-[40px] font-bold text-text-primary text-center">
-        {myBalance === 1 ? m.party_token_balance_single({ count: myBalance }) : m.party_token_balance_plural({ count: myBalance })}
-      </p>
-
-      <!-- Earned counter -->
-      <p class="text-[14px] text-text-secondary text-center">
-        {m.party_earned_counter({ earned: earnedThisChallenge })}
-      </p>
-
-      <!-- Chapter label above earn button -->
-      <p class="text-[14px] text-text-secondary uppercase tracking-widest text-center">{chapterLabel}</p>
-
-      <!-- Earn button -->
-      <button
-        class="earn-btn"
-        class:earn-capped={earnedThisChallenge >= EARN_CAP}
-        class:earn-flash={earnFlash}
-        disabled={earnedThisChallenge >= EARN_CAP}
-        aria-label={m.party_earn_aria_label()}
-        aria-disabled={earnedThisChallenge >= EARN_CAP}
-        ontouchend={handleEarnTap}
-        onclick={handleEarnTap}
-      >
-        {earnedThisChallenge >= EARN_CAP ? m.party_earn_btn_capped() : m.party_earn_btn_active()}
-      </button>
+    <div class="progress-track" aria-hidden="true">
+      <div class="progress-fill" style="width: {progressPercent}%;"></div>
     </div>
-
-    <!-- Zone 3: Shop (fixed max-height 40vh, overflow scroll) -->
-    <div class="shop-zone">
-      <p class="text-[14px] text-text-secondary uppercase tracking-[0.15em] mb-3">{m.party_shop_header()}</p>
-
-      {#if filteredShop.length === 0}
-        <p class="text-[14px] text-text-secondary text-center py-4">{m.party_shop_empty()}</p>
+    <div class="milestone-strip" aria-label={m.party_milestones_aria_label()}>
+      {#each milestones as milestone (milestone.id)}
+        <span class:unlocked={milestone.unlocked}>{milestone.points}</span>
+      {/each}
+    </div>
+    <p class="next-reward">
+      {#if nextMilestone && !nextMilestone.unlocked}
+        {m.party_next_milestone({ points: nextMilestone.points, reward: nextMilestone.reward })}
+      {:else if finalMilestone?.unlocked}
+        {m.party_all_milestones_unlocked()}
       {:else}
-        <ul class="shop-list" aria-label={m.party_shop_aria_label()}>
-          {#each filteredShop as powerUp, i}
-            {@const canAfford = myBalance >= powerUp.tokenCost}
-            {@const isPending = spendingIndex === i}
-            <li
-              class="shop-item"
-              class:shop-item-unaffordable={!canAfford}
-            >
-              <div class="shop-item-info">
-                <p class="text-[16px] font-bold text-text-primary leading-snug">{powerUp.name}</p>
-                <p class="text-[14px] text-text-secondary" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">{powerUp.description}</p>
-              </div>
-              <div class="shop-item-actions">
-                <span class="cost-badge">{m.party_shop_cost_badge({ cost: powerUp.tokenCost })}</span>
-                <button
-                  class="spend-btn"
-                  disabled={!canAfford || isPending}
-                  style={isPending ? "opacity: 0.5;" : ""}
-                  aria-label={m.party_shop_spend_aria_label({ cost: powerUp.tokenCost, name: powerUp.name })}
-                  onclick={() => handleSpend(i)}
-                >
-                  {m.party_shop_spend_btn()}
-                </button>
-              </div>
-            </li>
-          {/each}
-        </ul>
+        {m.party_no_milestones()}
       {/if}
+    </p>
+    <p class="chapter-context">{chapterLabel}</p>
+  </section>
+
+  <section class="proposal-panel">
+    <p class="section-header">{m.party_propose_dare_header()}</p>
+    <textarea
+      rows="3"
+      maxlength="160"
+      placeholder={m.party_propose_dare_placeholder()}
+      bind:value={dareText}
+    ></textarea>
+
+    <div class="tier-row" aria-label={m.party_point_tiers_aria_label()}>
+      {#each POINT_TIERS as tier}
+        <button
+          class:selected={selectedPoints === tier}
+          onclick={() => { selectedPoints = tier; }}
+        >
+          {m.party_point_tier({ points: tier })}
+        </button>
+      {/each}
     </div>
 
-  {:else}
-    <!-- SocialWaitingScreen — lobby / between challenges (D-06) -->
-    <div class="social-screen">
+    <button class="submit-dare" class:submitted={submitFlash} disabled={dareText.trim().length < 3} onclick={proposeDare}>
+      {submitFlash ? m.party_dare_submitted_btn() : m.party_submit_dare_btn()}
+    </button>
+  </section>
 
-      <!-- Token Balances section -->
-      <p class="section-header">{m.party_balances_header()}</p>
-      <ul class="balances-list" aria-label={m.party_balances_aria_label()}>
-        {#each groupPlayers as player (player.id)}
-          <li class="balance-row">
-            <span class="text-[16px] font-bold text-text-primary">{player.name}</span>
-            <span class="balance-pill">💰 {$gameState?.tokenBalances?.[player.id] ?? 0}</span>
+  <section class="list-section">
+    <p class="section-header">{m.party_voting_dares_header()}</p>
+    {#if votingDares.length === 0}
+      <p class="empty-text">{m.party_voting_dares_empty()}</p>
+    {:else}
+      <ul class="dare-list">
+        {#each votingDares as dare (dare.id)}
+          <li class="dare-card">
+            <div class="dare-card-top">
+              <span class="points-badge">{m.party_point_tier({ points: dare.points })}</span>
+              <span class="vote-count">{voteLabel(dare)}</span>
+            </div>
+            <p class="dare-text">{dare.text}</p>
+            <p class="dare-meta">{m.party_dare_proposed_by({ name: playerName(dare.proposedBy) })}</p>
+            <button class="vote-btn" disabled={hasVoted(dare)} onclick={() => voteDare(dare.id)}>
+              {hasVoted(dare) ? m.party_dare_voted_btn() : m.party_dare_vote_btn()}
+            </button>
           </li>
         {/each}
-        {#if groupPlayers.length === 0}
-          <li class="px-4 py-3 text-[14px] text-text-secondary">{m.party_balances_empty()}</li>
-        {/if}
       </ul>
+    {/if}
+  </section>
 
-      <!-- Recent Actions feed -->
-      <p class="section-header">{m.party_actions_header()}</p>
-      {#if recentActions.length === 0}
-        <div class="empty-feed">
-          <p class="text-[14px] font-bold text-text-primary">{m.party_actions_empty_heading()}</p>
-          <p class="text-[14px] text-text-secondary">{m.party_actions_empty_body()}</p>
-        </div>
-      {:else}
-        <ul class="actions-list" aria-label={m.party_actions_aria_label()}>
-          {#each recentActions as action (action.timestamp)}
-            <li class="action-row">
-              <p class="text-[16px] text-text-primary">{action.playerName} used {action.powerUpName}</p>
-              <p class="text-[14px] text-text-secondary">{new Date(action.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
-            </li>
-          {/each}
-        </ul>
-      {/if}
+  <section class="list-section">
+    <p class="section-header">{m.party_active_dares_header()}</p>
+    {#if activeDares.length === 0}
+      <p class="empty-text">{m.party_active_dares_empty()}</p>
+    {:else}
+      <ul class="dare-list">
+        {#each activeDares as dare (dare.id)}
+          <li class="dare-card active">
+            <div class="dare-card-top">
+              <span class="points-badge">{m.party_point_tier({ points: dare.points })}</span>
+              <span class="active-badge">{m.party_dare_active_badge()}</span>
+            </div>
+            <p class="dare-text">{dare.text}</p>
+            <p class="dare-meta">{m.party_host_resolves_dare()}</p>
+          </li>
+        {/each}
+      </ul>
+    {/if}
+  </section>
 
-      <!-- Waiting status (shown in lobby) -->
-      {#if $gameState?.phase === "lobby"}
-        <p class="text-base text-text-secondary text-center mt-4">{m.party_lobby_waiting()}</p>
-      {/if}
-    </div>
-  {/if}
-
-  <!-- Recap Card Overlay (GAME-05) — shown on chapter unlock, auto-dismisses after 3s -->
-  {#if $gameState && recapChapterIndex !== null}
-    <div
-      class="recap-overlay"
-      class:visible={showRecap}
-      aria-live="polite"
-      role="status"
-    >
-      <div class="recap-content">
-        <p class="recap-label">{m.party_recap_label()}</p>
-        <p class="recap-number">{recapChapterIndex + 1}</p>
-        <p class="recap-chapter-name">
-          {$gameState.chapters[recapChapterIndex]?.name ?? ""}
-        </p>
-        <p class="recap-progress">{m.party_recap_progress({ current: recapChapterIndex + 1, total: $gameState.chapters.length })}</p>
-      </div>
-    </div>
-  {/if}
-
-  <!-- Reward Reveal Overlay (RWRD-01) — persists until next chapter unlock -->
-  {#if $gameState && revealedChapterIndex !== null}
-    {@const revealChapter = $gameState.chapters[revealedChapterIndex]}
-    <div
-      class="reward-overlay"
-      class:visible={showRewardReveal}
-      role="status"
-      aria-live="polite"
-    >
-      <div class="reward-content">
-        <p class="reward-label">{m.party_reward_unlocked_label()}</p>
-        <p class="reward-chapter">{revealChapter?.name ?? ""}</p>
-        <div class="reward-text-container">
-          <p class="reward-text">{revealChapter?.reward ?? ""}</p>
-        </div>
-      </div>
-    </div>
-  {/if}
-
-  <!-- Announcement overlay (GRPX-06, D-07/D-08/D-09) — all clients -->
-  <div
-    class="announcement-overlay"
-    class:visible={showAnnouncement}
-    style="background: {isSabotage ? 'rgba(239, 68, 68, 0.85)' : 'rgba(245, 158, 11, 0.85)'};"
-    role="status"
-    aria-live="assertive"
-  >
-    <p class="announce-player">{activatingPlayerName}</p>
-    <p class="announce-powerup">{isSabotage ? '⚡' : '✨'} {announcementData?.powerUpName ?? ''}</p>
-  </div>
-
-  <!-- Spend reject toast -->
-  {#if spendRejectToast}
-    <div class="spend-toast" role="alert" aria-live="assertive">
-      {m.party_spend_reject_toast()}
-    </div>
-  {/if}
+  <section class="list-section">
+    <p class="section-header">{m.party_resolved_dares_header()}</p>
+    {#if resolvedDares.length === 0}
+      <p class="empty-text">{m.party_resolved_dares_empty()}</p>
+    {:else}
+      <ul class="compact-list">
+        {#each resolvedDares as dare (dare.id)}
+          <li>
+            <span>{dare.text}</span>
+            <strong>{statusText(dare.status)}</strong>
+          </li>
+        {/each}
+      </ul>
+    {/if}
+  </section>
 </main>
 
 <style>
-  /* Zone 1: Groom progress bar */
-  .groom-progress-bar {
-    height: 48px;
+  .party-screen {
+    min-height: 100dvh;
+    background: #0f0f0f;
+    color: #f9fafb;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .score-panel,
+  .proposal-panel,
+  .dare-card {
+    border: 1px solid #4a4a4c;
+    border-radius: 8px;
+    background: #242426;
+    padding: 16px;
+  }
+
+  .score-row,
+  .dare-card-top,
+  .compact-list li {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0 16px;
-    background: #242426;
-    border-bottom: 1px solid #4a4a4c;
-    flex-shrink: 0;
+    gap: 12px;
   }
 
-  /* Zone 2: Earn area */
-  .earn-zone {
-    flex: 1;
+  .score-row span,
+  .section-header {
+    color: #9ca3af;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    margin: 0;
+  }
+
+  .score-row strong {
+    font-size: 24px;
+    color: #f59e0b;
+  }
+
+  .progress-track {
+    height: 12px;
+    overflow: hidden;
+    border-radius: 9999px;
+    background: #0f0f0f;
+    margin: 12px 0 10px;
+  }
+
+  .progress-fill {
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #f59e0b, #22c55e);
+    transition: width 180ms ease;
+  }
+
+  .milestone-strip {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .milestone-strip span,
+  .points-badge,
+  .active-badge {
+    border: 1px solid #4a4a4c;
+    border-radius: 9999px;
+    padding: 2px 8px;
+    color: #9ca3af;
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  .milestone-strip span.unlocked,
+  .active-badge {
+    border-color: #22c55e;
+    color: #22c55e;
+  }
+
+  .next-reward,
+  .chapter-context,
+  .empty-text,
+  .dare-meta {
+    color: #9ca3af;
+    font-size: 14px;
+    line-height: 1.4;
+    margin: 8px 0 0;
+  }
+
+  .proposal-panel {
     display: flex;
     flex-direction: column;
-    align-items: center;
-    justify-content: center;
     gap: 12px;
-    padding: 24px 16px;
   }
 
-  .earn-btn {
+  textarea {
     width: 100%;
-    max-width: 360px;
-    height: 80px;
-    background: #ef4444;
+    resize: none;
+    border: 1px solid #4a4a4c;
+    border-radius: 8px;
+    background: #0f0f0f;
     color: #f9fafb;
-    font-size: 24px;
+    font-size: 16px;
+    line-height: 1.4;
+    padding: 12px;
+  }
+
+  .tier-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+
+  .tier-row button,
+  .submit-dare,
+  .vote-btn {
+    min-height: 44px;
+    border: 1px solid #4a4a4c;
+    border-radius: 8px;
+    background: #0f0f0f;
+    color: #f9fafb;
     font-weight: 700;
-    border: none;
-    border-radius: 16px;
-    cursor: pointer;
-    transition: transform 100ms ease, background-color 200ms ease;
-    min-height: 80px;
-  }
-  .earn-btn:active { transform: scale(0.95); }
-  .earn-btn.earn-capped {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-  .earn-btn.earn-flash { background: #22c55e; }
-
-  /* Zone 3: Shop */
-  .shop-zone {
-    max-height: 40vh;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-    overscroll-behavior: contain;
-    padding: 16px;
-    border-top: 1px solid #4a4a4c;
-    flex-shrink: 0;
   }
 
-  .shop-list {
-    list-style: none;
-    padding: 0;
-    margin: 0;
+  .tier-row button.selected {
+    border-color: #ef4444;
+    background: rgba(239, 68, 68, 0.18);
+  }
+
+  .submit-dare {
+    border-color: #ef4444;
+    background: #ef4444;
+  }
+
+  .submit-dare.submitted {
+    border-color: #22c55e;
+    background: #22c55e;
+    color: #0f0f0f;
+  }
+
+  button:disabled {
+    opacity: 0.45;
+  }
+
+  .list-section {
     display: flex;
     flex-direction: column;
     gap: 8px;
   }
 
-  .shop-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    background: #242426;
-    border: 1px solid #4a4a4c;
-    border-radius: 8px;
-    padding: 12px 16px;
-    min-height: 64px;
-  }
-  .shop-item-unaffordable { opacity: 0.4; }
-
-  .shop-item-info { flex: 1; min-width: 0; }
-  .shop-item-actions {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 4px;
-    flex-shrink: 0;
-  }
-
-  .cost-badge {
-    font-size: 14px;
-    color: #9ca3af;
-    background: #242426;
-    border: 1px solid #4a4a4c;
-    border-radius: 9999px;
-    padding: 2px 8px;
-    white-space: nowrap;
-  }
-
-  .spend-btn {
-    height: 36px;
-    min-width: 48px;
-    padding: 0 12px;
-    background: #ef4444;
-    color: #f9fafb;
-    font-size: 14px;
-    font-weight: 700;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    min-height: 36px;
-  }
-  .spend-btn:disabled { cursor: not-allowed; }
-
-  /* Social waiting screen */
-  .social-screen {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-    padding: 24px 16px;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  .section-header {
-    font-size: 14px;
-    color: #9ca3af;
-    letter-spacing: 0.15em;
-    text-transform: uppercase;
-    margin: 0;
-  }
-
-  .balances-list {
+  .dare-list,
+  .compact-list {
     list-style: none;
-    padding: 0;
     margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .dare-card.active {
+    border-color: rgba(34, 197, 94, 0.6);
+  }
+
+  .points-badge {
+    border-color: #f59e0b;
+    color: #f59e0b;
+  }
+
+  .vote-count {
+    color: #9ca3af;
+    font-size: 12px;
+  }
+
+  .dare-text {
+    color: #f9fafb;
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1.35;
+    margin: 10px 0 0;
+  }
+
+  .vote-btn {
+    width: 100%;
+    margin-top: 12px;
+    border-color: #ef4444;
+    color: #ef4444;
+  }
+
+  .compact-list li {
+    min-height: 44px;
     border: 1px solid #4a4a4c;
     border-radius: 8px;
+    padding: 8px 12px;
     background: #242426;
+  }
+
+  .compact-list span {
+    min-width: 0;
     overflow: hidden;
-  }
-  .balance-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 8px 16px;
-    border-bottom: 1px solid #4a4a4c;
-    min-height: 44px;
-  }
-  .balance-row:last-child { border-bottom: none; }
-  .balance-pill {
-    font-size: 14px;
-    color: #f9fafb;
-    background: #242426;
-    border: 1px solid #4a4a4c;
-    border-radius: 9999px;
-    padding: 2px 10px;
-  }
-
-  .actions-list {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 0;
-  }
-  .action-row {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    padding: 8px 16px;
-    border-bottom: 1px solid #4a4a4c;
-    min-height: 44px;
-  }
-  .action-row:last-child { border-bottom: none; }
-
-  .empty-feed {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 4px;
-    padding: 24px 16px;
-    text-align: center;
-  }
-
-  /* Announcement overlay (z-100, above all overlays) */
-  .announcement-overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 100;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 16px;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 200ms ease;
-    padding: 64px 32px;
-    text-align: center;
-  }
-  .announcement-overlay.visible {
-    opacity: 1;
-    pointer-events: none;
-  }
-  .announce-player {
-    font-size: 64px;
-    font-weight: 700;
-    color: #f9fafb;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    line-height: 1.1;
-    margin: 0;
-  }
-  .announce-powerup {
-    font-size: 40px;
-    font-weight: 700;
-    color: #f9fafb;
-    line-height: 1.1;
-    margin: 0;
-  }
-
-  /* Recap card overlay — theatrical full-screen chapter announcement (GAME-05) */
-  .recap-overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 50;
-    background: rgba(15, 15, 15, 0.95); /* --color-bg at 95% opacity */
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 200ms ease; /* --duration-normal */
-  }
-
-  .recap-overlay.visible {
-    opacity: 1;
-    pointer-events: auto;
-  }
-
-  .recap-content {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 8px; /* --spacing-sm */
-    padding: 64px 32px; /* --spacing-3xl --spacing-xl */
-    text-align: center;
-  }
-
-  .recap-label {
-    font-size: 14px; /* --font-size-label */
-    color: #9ca3af; /* --color-text-secondary */
-    letter-spacing: 0.2em;
-    text-transform: uppercase;
-    margin: 0;
-  }
-
-  .recap-number {
-    font-size: 40px; /* --font-size-display */
-    font-weight: 700;
-    color: #f9fafb; /* --color-text-primary */
-    line-height: 1.1;
-    margin: 0;
-  }
-
-  .recap-chapter-name {
-    font-size: 24px; /* --font-size-heading */
-    font-weight: 700;
-    color: #f59e0b; /* --color-accent-groom — theatrical highlight */
-    line-height: 1.2;
-    margin: 0;
-  }
-
-  .recap-progress {
-    font-size: 14px; /* --font-size-label */
-    color: #9ca3af; /* --color-text-secondary */
-    margin: 0;
-  }
-
-  /* Reward reveal overlay — same base as recap, but persists (UI-SPEC RewardReveal section) */
-  .reward-overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 50;
-    background: rgba(15, 15, 15, 0.95);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 200ms ease;
-  }
-
-  .reward-overlay.visible {
-    opacity: 1;
-    pointer-events: auto;
-  }
-
-  .reward-content {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 24px; /* gap-lg */
-    padding: 64px 32px; /* py-3xl px-xl */
-    text-align: center;
-  }
-
-  .reward-label {
-    font-size: 14px;
-    color: #9ca3af;
-    letter-spacing: 0.2em;
-    text-transform: uppercase;
-    margin: 0;
-  }
-
-  .reward-chapter {
-    font-size: 24px;
-    font-weight: 700;
-    color: #f9fafb;
-    margin: 0;
-  }
-
-  .reward-text-container {
-    box-shadow: 0 0 32px rgba(245, 158, 11, 0.25); /* glow per UI-SPEC */
-    border-radius: 12px;
-    padding: 8px;
-  }
-
-  .reward-text {
-    font-size: 40px;
-    font-weight: 700;
-    color: #f59e0b; /* --color-accent-groom */
-    text-align: center;
-    line-height: 1.2;
-    margin: 0;
-  }
-
-  /* Spend reject toast */
-  .spend-toast {
-    position: fixed;
-    bottom: 24px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: #242426;
-    border: 1px solid #4a4a4c;
-    border-radius: 8px;
-    padding: 10px 20px;
-    font-size: 14px;
-    color: #f9fafb;
-    z-index: 200;
+    text-overflow: ellipsis;
     white-space: nowrap;
+    color: #f9fafb;
+  }
+
+  .compact-list strong {
+    color: #9ca3af;
+    font-size: 12px;
+    text-transform: uppercase;
   }
 </style>

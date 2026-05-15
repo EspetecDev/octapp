@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Chapter } from "$lib/types.ts";
+  import { gameState } from "$lib/socket.ts";
   import * as m from '$lib/paraglide/messages.js';
 
   let {
@@ -22,18 +23,27 @@
   // Accordion state — track which past reward is open
   let openIndex = $state<number | null>(null);
 
+  let unlockedMilestones = $derived(
+    [...($gameState?.milestones ?? [])]
+      .filter((milestone) => milestone.unlocked)
+      .sort((a, b) => a.points - b.points)
+  );
+  let latestMilestone = $derived(unlockedMilestones[unlockedMilestones.length - 1] ?? null);
+
   function toggleAccordion(idx: number) {
     openIndex = openIndex === idx ? null : idx;
   }
 </script>
 
 <div class="reward-screen">
-  <!-- Current reward reveal (D-24, RWRD-02) -->
+  <!-- Current milestone reward reveal -->
   <div class="reward-section">
     <p class="reward-label">{m.reward_unlocked_label()}</p>
-    <p class="chapter-name">{m.reward_chapter_label({ number: activeChapterIndex + 1 })}</p>
+    <p class="chapter-name">
+      {latestMilestone ? m.reward_milestone_label({ points: latestMilestone.points }) : m.reward_chapter_label({ number: activeChapterIndex + 1 })}
+    </p>
     <div class="reward-card">
-      <p class="reward-text">{chapter.reward}</p>
+      <p class="reward-text">{latestMilestone?.reward ?? chapter.reward}</p>
     </div>
   </div>
 
@@ -54,6 +64,29 @@
             </button>
             <div class="accordion-content" class:open={openIndex === i}>
               <p class="accordion-text">{pastChapter.reward}</p>
+            </div>
+          </div>
+        {/each}
+      </div>
+    </div>
+  {/if}
+
+  {#if unlockedMilestones.length > 1}
+    <div class="past-section">
+      <p class="section-label">{m.reward_past_milestones_label()}</p>
+      <div class="accordion">
+        {#each unlockedMilestones.slice(0, -1) as milestone, i}
+          <div class="accordion-item">
+            <button
+              class="accordion-trigger"
+              onclick={() => toggleAccordion(i + 1000)}
+              aria-expanded={openIndex === i + 1000}
+            >
+              {m.reward_milestone_label({ points: milestone.points })}
+              <span class="accordion-arrow" class:open={openIndex === i + 1000}>▼</span>
+            </button>
+            <div class="accordion-content" class:open={openIndex === i + 1000}>
+              <p class="accordion-text">{milestone.reward}</p>
             </div>
           </div>
         {/each}
@@ -101,7 +134,7 @@
   .reward-card {
     background: #242426;
     border: 1px solid #f59e0b; /* accent border */
-    border-radius: 16px;
+    border-radius: 8px;
     padding: 32px; /* p-xl */
     width: 100%;
     box-shadow: 0 0 24px rgba(245, 158, 11, 0.3); /* glow effect */

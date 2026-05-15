@@ -1,5 +1,5 @@
 import type { ServerWebSocket, Server } from "bun";
-import { getState, setState, broadcastState, type Player, type Chapter, type PowerUp } from "./state.ts";
+import { getState, setState, broadcastState, type Player, type PointTier, type GameState } from "./state.ts";
 import { getSession } from "./session.ts";
 
 // Data attached to each WebSocket connection (available as ws.data)
@@ -12,15 +12,62 @@ type IncomingMessage =
   | { type: "JOIN"; sessionCode: string; name: string; role: "groom" | "group" }
   | { type: "REJOIN"; playerId: string; sessionCode: string }
   | { type: "PONG" }
-  | { type: "SAVE_SETUP"; chapters: Chapter[]; powerUpCatalog: PowerUp[]; startingTokens: number }
   | { type: "UNLOCK_CHAPTER" }
   | { type: "MINIGAME_COMPLETE"; result: "win" | "loss" }
   | { type: "SCAVENGER_DONE" }
   | { type: "HINT_REQUEST" }
-  | { type: "SPEND_TOKEN"; powerUpIndex: number }
-  | { type: "EARN_TOKEN" }
+  | { type: "PROPOSE_DARE"; text: string; points: PointTier }
+  | { type: "VOTE_DARE"; dareId: string }
+  | { type: "RESOLVE_DARE"; dareId: string; result: "completed" | "failed" }
+  | { type: "DELETE_DARE"; dareId: string }
   | { type: "RESET_GAME" }
   | { type: "REPEAT_CHAPTER" };
+
+const MINIGAME_WIN_POINTS = 50;
+const SCAVENGER_POINTS = 25;
+const DARE_POINT_TIERS: PointTier[] = [10, 25, 50];
+
+function unlockMilestones(s: GameState, nextScore: number) {
+  return s.milestones.map((milestone) => ({
+    ...milestone,
+    unlocked: milestone.unlocked || nextScore >= milestone.points,
+  }));
+}
+
+function addGroomPoints(s: GameState, points: number): GameState {
+  if (points <= 0) return s;
+  const nextScore = s.groomScore + points;
+  return {
+    ...s,
+    groomScore: nextScore,
+    milestones: unlockMilestones(s, nextScore),
+    scores: s.groomPlayerId
+      ? { ...s.scores, [s.groomPlayerId]: nextScore }
+      : s.scores,
+  };
+}
+
+function connectedGroupMajorityReached(state: GameState, votes: string[]): boolean {
+  const connectedGroupIds = new Set(
+    state.players
+      .filter((player) => player.role === "group" && player.connected)
+      .map((player) => player.id)
+  );
+  if (connectedGroupIds.size === 0) return false;
+  const yesVotes = votes.filter((id) => connectedGroupIds.has(id)).length;
+  return yesVotes > connectedGroupIds.size / 2;
+}
+
+function activatePassedDares(s: GameState): GameState {
+  return {
+    ...s,
+    dareProposals: s.dareProposals.map((dare) =>
+      dare.status === "voting" && connectedGroupMajorityReached(s, dare.votes)
+        ? { ...dare, status: "active" }
+        : dare
+    ),
+  };
+}
 
 export function handleOpen(ws: ServerWebSocket<WSData>, server: Server): void {
   // Subscribe this connection to the game broadcast channel
@@ -85,11 +132,11 @@ export function handleMessage(
     setState((s) => {
       const player: Player = { id: playerId, name, role: msg.role, connected: true };
       const players = [...s.players, player];
-      return {
+      return activatePassedDares({
         ...s,
         players,
         groomPlayerId: msg.role === "groom" ? playerId : s.groomPlayerId,
-      };
+      });
     });
 
     // Send the playerId back to this client so they can store it in localStorage (SESS-06)
@@ -112,7 +159,7 @@ export function handleMessage(
     ws.data.sessionCode = msg.sessionCode;
 
     // Mark player as reconnected
-    setState((s) => ({
+    setState((s) => activatePassedDares({
       ...s,
       players: s.players.map((p) =>
         p.id === msg.playerId ? { ...p, connected: true } : p
@@ -131,26 +178,6 @@ export function handleMessage(
   }
 
   // PONG — no-op; ping alone keeps Railway alive
-
-  if (msg.type === "SAVE_SETUP") {
-    const state = getState();
-    if (!state || state.phase !== "lobby") {
-      ws.send(JSON.stringify({
-        type: "ERROR",
-        code: "UNKNOWN",
-        message: "Setup is locked after the game starts.",
-      }));
-      return;
-    }
-    setState((s) => ({
-      ...s,
-      chapters: msg.chapters,
-      powerUpCatalog: msg.powerUpCatalog,
-      startingTokens: msg.startingTokens ?? 0,
-    }));
-    broadcastState(server);
-    return;
-  }
 
   if (msg.type === "UNLOCK_CHAPTER") {
     const state = getState();
@@ -191,20 +218,11 @@ export function handleMessage(
         };
       });
 
-      // Initialize tokenBalances for all current group players (D-03)
-      const tokenBalances: Record<string, number> = {};
-      const startingTokens = s.startingTokens ?? 0;
-      s.players
-        .filter((p) => p.role === "group")
-        .forEach((p) => { tokenBalances[p.id] = startingTokens; });
-
       return {
         ...s,
         phase: "active",
         activeChapterIndex: nextIndex,
         scores,
-        tokenBalances,           // initialize per-chapter token balances
-        recentActions: [],       // clear log on new chapter
         chapters: updatedChapters,
       };
     });
@@ -218,19 +236,15 @@ export function handleMessage(
     if (!state || state.activeChapterIndex === null) return;
     // Idempotency guard (Pitfall 7): do not double-apply score if already done
     if (state.chapters[state.activeChapterIndex]?.minigameDone) return;
-    const groomId = state.groomPlayerId;
-    const delta = msg.result === "win" ? 50 : -20;
+    const delta = msg.result === "win" ? MINIGAME_WIN_POINTS : 0;
     setState((s) => {
       const updatedChapters = s.chapters.map((ch, i) =>
         i === s.activeChapterIndex ? { ...ch, minigameDone: true } : ch
       );
-      return {
+      return addGroomPoints({
         ...s,
         chapters: updatedChapters,
-        scores: groomId
-          ? { ...s.scores, [groomId]: (s.scores[groomId] ?? 0) + delta }
-          : s.scores,
-      };
+      }, delta);
     });
     broadcastState(server);
     return;
@@ -243,97 +257,96 @@ export function handleMessage(
       const updatedChapters = s.chapters.map((ch, i) =>
         i === s.activeChapterIndex ? { ...ch, scavengerDone: true } : ch
       );
-      return { ...s, chapters: updatedChapters };
+      return addGroomPoints({ ...s, chapters: updatedChapters }, SCAVENGER_POINTS);
     });
     broadcastState(server);
     return;
   }
 
   if (msg.type === "HINT_REQUEST") {
+    // Hints no longer penalize the global milestone score.
+    return;
+  }
+
+  if (msg.type === "PROPOSE_DARE") {
     const state = getState();
-    if (!state || state.activeChapterIndex === null) return;
-    const groomId = state.groomPlayerId;
-    if (!groomId) return;
+    const proposerId = ws.data.playerId;
+    if (!state || !proposerId) return;
+    const proposer = state.players.find((player) => player.id === proposerId);
+    if (!proposer || proposer.role !== "group") return;
+    const text = msg.text.trim();
+    if (text.length < 3 || text.length > 160 || !DARE_POINT_TIERS.includes(msg.points)) return;
+    const votes = [proposerId];
+    const status = connectedGroupMajorityReached(state, votes) ? "active" : "voting";
     setState((s) => ({
       ...s,
-      scores: { ...s.scores, [groomId]: (s.scores[groomId] ?? 0) - 10 },
+      dareProposals: [
+        {
+          id: crypto.randomUUID(),
+          text,
+          points: msg.points,
+          proposedBy: proposerId,
+          votes,
+          status,
+          createdAt: Date.now(),
+        },
+        ...s.dareProposals,
+      ],
     }));
     broadcastState(server);
     return;
   }
 
-  if (msg.type === "SPEND_TOKEN") {
+  if (msg.type === "VOTE_DARE") {
     const state = getState();
-    if (!state || state.activeChapterIndex === null) return;
+    const voterId = ws.data.playerId;
+    if (!state || !voterId) return;
+    const voter = state.players.find((player) => player.id === voterId);
+    if (!voter || voter.role !== "group") return;
+    setState((s) => ({
+      ...s,
+      dareProposals: s.dareProposals.map((dare) => {
+        if (dare.id !== msg.dareId || dare.status !== "voting") return dare;
+        const votes = dare.votes.includes(voterId) ? dare.votes : [...dare.votes, voterId];
+        return {
+          ...dare,
+          votes,
+          status: connectedGroupMajorityReached(s, votes) ? "active" : "voting",
+        };
+      }),
+    }));
+    broadcastState(server);
+    return;
+  }
 
-    const spenderId = ws.data.playerId;
-    if (!spenderId) return;
-
-    const powerUp = state.powerUpCatalog[msg.powerUpIndex];
-    if (!powerUp) return; // invalid index — silently drop
-
-    const balance = state.tokenBalances?.[spenderId] ?? 0;
-    if (balance < powerUp.tokenCost) return; // insufficient balance — silently drop
-
-    // Pitfall 4: scramble_options only valid during trivia
-    const activeChapter = state.chapters[state.activeChapterIndex];
-    if (powerUp.effectType === "scramble_options" && activeChapter?.minigameType !== "trivia") return;
-
-    const spenderPlayer = state.players.find((p) => p.id === spenderId);
-    const playerName = spenderPlayer?.name ?? "Unknown";
-
-    // Compute delta for timer effects (D-10)
-    let delta: number | undefined;
-    if (powerUp.effectType === "timer_add") delta = 5;
-    else if (powerUp.effectType === "timer_reduce") delta = -5;
-
+  if (msg.type === "RESOLVE_DARE") {
+    const state = getState();
+    if (!state) return;
+    const dare = state.dareProposals.find((proposal) => proposal.id === msg.dareId);
+    if (!dare || dare.status !== "active") return;
     setState((s) => {
-      const newBalances = { ...s.tokenBalances, [spenderId]: (s.tokenBalances?.[spenderId] ?? 0) - powerUp.tokenCost };
-      const newAction = { playerName, powerUpName: powerUp.name, timestamp: Date.now() };
-      const newActions = [newAction, ...(s.recentActions ?? [])].slice(0, 20);
-      return { ...s, tokenBalances: newBalances, recentActions: newActions };
+      const updated = s.dareProposals.map((proposal) =>
+        proposal.id === msg.dareId
+          ? { ...proposal, status: msg.result, resolvedAt: Date.now() }
+          : proposal
+      );
+      return addGroomPoints({ ...s, dareProposals: updated }, msg.result === "completed" ? dare.points : 0);
     });
-
-    // Broadcast state update (balances + feed)
     broadcastState(server);
-
-    // Broadcast EFFECT_ACTIVATED as a separate event (never stored in GameState — Pitfall 1)
-    server.publish("game", JSON.stringify({
-      type: "EFFECT_ACTIVATED",
-      activatedBy: spenderId,
-      powerUpName: powerUp.name,
-      effectType: powerUp.effectType,
-      ...(delta !== undefined ? { delta } : {}),
-    }));
     return;
   }
 
-  if (msg.type === "EARN_TOKEN") {
+  if (msg.type === "DELETE_DARE") {
     const state = getState();
-    if (!state || state.activeChapterIndex === null) return;
-
-    const earnerId = ws.data.playerId;
-    if (!earnerId) return;
-
-    // Only group players can earn tokens
-    const earner = state.players.find((p) => p.id === earnerId);
-    if (!earner || earner.role !== "group") return;
-
-    const currentBalance = state.tokenBalances?.[earnerId] ?? 0;
-    const cap = state.startingTokens ?? 0;
-
-    // Cap: balance cannot exceed 2× startingTokens (earn up to startingTokens extra)
-    const maxBalance = cap * 2;
-    if (currentBalance >= maxBalance) return; // already at earn cap — silently drop
-
+    if (!state) return;
     setState((s) => ({
       ...s,
-      tokenBalances: {
-        ...s.tokenBalances,
-        [earnerId]: Math.min((s.tokenBalances?.[earnerId] ?? 0) + 1, maxBalance),
-      },
+      dareProposals: s.dareProposals.map((dare) =>
+        dare.id === msg.dareId && (dare.status === "voting" || dare.status === "active")
+          ? { ...dare, status: "deleted", resolvedAt: Date.now() }
+          : dare
+      ),
     }));
-
     broadcastState(server);
     return;
   }
@@ -348,8 +361,9 @@ export function handleMessage(
       groomPlayerId: null,
       players: [],
       scores: {},
-      tokenBalances: {},
-      recentActions: [],
+      groomScore: 0,
+      milestones: s.milestones.map((milestone) => ({ ...milestone, unlocked: false })),
+      dareProposals: [],
       chapters: s.chapters.map((ch) => ({
         ...ch,
         minigameDone: false,
@@ -391,7 +405,7 @@ export function handleClose(
 ): void {
   if (!ws.data.playerId) return;
 
-  setState((s) => ({
+  setState((s) => activatePassedDares({
     ...s,
     players: s.players.map((p) =>
       p.id === ws.data.playerId ? { ...p, connected: false } : p
